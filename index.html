@@ -19,7 +19,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 
   <style>
-    /* Premium visual styles and scrollbars */
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
     
     body {
@@ -298,13 +297,12 @@
       return copy;
     };
 
-    // Calculate Outs & Draws (Flush, Straight)
     const evaluateOuts = (hole, board) => {
       if (board.length < 3) return { count: 0, cards: [] };
       const combined = [...hole, ...board];
       const outs = [];
 
-      // Check Flush Draws (4 of same suit)
+      // Check Flush Draws (Exactly 4 of same suit)
       const suitCounts = {};
       combined.forEach(c => suitCounts[c.suitName] = (suitCounts[c.suitName] || 0) + 1);
       
@@ -319,7 +317,7 @@
         });
       }
 
-      // Check Open-Ended Straight Draw
+      // Check Straight Draws (OESD & Gutshots)
       const valIndices = combined.map(c => VALUES.indexOf(c.value)).sort((a,b) => a - b);
       const uniqueIndices = [...new Set(valIndices)];
       
@@ -338,6 +336,37 @@
             }
           });
         }
+      }
+
+      // Check pocket pairs improving to sets (2 remaining cards of matching value)
+      if (hole.length === 2 && hole[0].value === hole[1].value) {
+        const matchingVal = hole[0].value;
+        const existsOnBoard = board.some(c => c.value === matchingVal);
+        if (!existsOnBoard) {
+          SUITS.forEach(s => {
+            if (!combined.some(c => c.value === matchingVal && c.suit === s.symbol)) {
+              outs.push({ value: matchingVal, suit: s.symbol, color: s.color });
+            }
+          });
+        }
+      }
+
+      // Check unpaired cards improving to Top Pair (unpaired hole cards higher than highest board card)
+      if (hole.length === 2 && hole[0].value !== hole[1].value) {
+        const boardValues = board.map(c => valueMap[c.value]);
+        const highestBoardVal = Math.max(...boardValues, 0);
+        const h1 = valueMap[hole[0].value];
+        const h2 = valueMap[hole[1].value];
+        
+        [hole[0].value, hole[1].value].forEach(val => {
+          if (valueMap[val] > highestBoardVal) {
+            SUITS.forEach(s => {
+              if (!combined.some(c => c.value === val && c.suit === s.symbol)) {
+                outs.push({ value: val, suit: s.symbol, color: s.color });
+              }
+            });
+          }
+        });
       }
 
       return {
@@ -942,7 +971,7 @@
             </div>
           </div>
 
-          {/* ================= CENTRAL AREA: SCALABLE TABLE ================= */}
+          {/* ================= STREAMING_CHUNK: CENTRAL AREA: SCALABLE TABLE ================= */}
           <div className="flex-1 relative flex items-center justify-center p-6 overflow-hidden">
             
             {/* Table Scaling HUD on top-right */}
@@ -953,7 +982,7 @@
                 <input 
                   type="range" 
                   min="0.5" 
-                  max="1.2" 
+                  max="1.5" 
                   step="0.05"
                   value={tableScale}
                   onChange={(e) => setTableScale(parseFloat(e.target.value))}
@@ -997,10 +1026,10 @@
                     board.map((card, idx) => (
                       <div 
                         key={idx} 
-                        className="w-11 h-16 bg-white rounded-md shadow-lg flex flex-col justify-between p-1.5 text-slate-900 font-black font-mono transition-all transform hover:-translate-y-1"
+                        className="w-14 h-20 bg-white rounded-md shadow-lg flex flex-col justify-between p-1.5 text-slate-900 font-black font-mono transition-all transform hover:-translate-y-1"
                       >
-                        <span className={`text-[13px] leading-none ${card.color}`}>{card.value}</span>
-                        <span className={`text-right text-lg leading-none ${card.color}`}>{card.suit}</span>
+                        <span className={`text-[15px] leading-none ${card.color}`}>{card.value}</span>
+                        <span className={`text-right text-xl leading-none ${card.color}`}>{card.suit}</span>
                       </div>
                     ))
                   )}
@@ -1052,12 +1081,12 @@
                           {seat.cards.map((c, cIdx) => (
                             <div 
                               key={cIdx} 
-                              className={`w-7 h-10 rounded shadow-md flex flex-col justify-between p-0.5 font-bold text-[10px] ${isActive ? 'bg-white text-slate-900' : 'bg-slate-800 text-slate-600'}`}
+                              className={`w-10 h-14 rounded shadow-md flex flex-col justify-between p-0.5 font-bold text-[10px] ${isActive ? 'bg-white text-slate-900' : 'bg-slate-800 text-slate-600'}`}
                             >
                               {isActive ? (
                                 <>
-                                  <span className={`leading-none ${c.color}`}>{c.value}</span>
-                                  <span className={`text-right text-[12px] leading-none ${c.color}`}>{c.suit}</span>
+                                  <span className={`leading-none text-[12px] ${c.color}`}>{c.value}</span>
+                                  <span className={`text-right text-[16px] leading-none ${c.color}`}>{c.suit}</span>
                                 </>
                               ) : (
                                 <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-900 rounded-sm"></div>
@@ -1128,11 +1157,11 @@
               </div>
             </div>
 
-            {/* ================= ACTIONS HUD CONSOLE & BET SHORTCUTS ================= */}
-            <div className="absolute bottom-4 flex flex-col gap-2.5 items-center justify-center bg-slate-950/95 backdrop-blur border border-slate-800 p-3.5 rounded-2xl shadow-2xl z-20 max-w-[95%]">
+            {/* ================= STREAMING_CHUNK: ACTIONS HUD CONSOLE & BET SHORTCUTS ================= */}
+            <div className="absolute bottom-4 flex flex-row items-center justify-between bg-slate-950/95 backdrop-blur border border-slate-800 p-3 rounded-2xl shadow-2xl z-20 w-[95%] max-w-[1050px] gap-6">
               
-              {/* Row 1: Core Action Suite & Stack Indicator */}
-              <div className="flex items-center gap-3 w-full border-b border-slate-800/60 pb-2.5">
+              {/* Left Side: Core Action Suite & Stack Indicator */}
+              <div className="flex items-center gap-3">
                 {activePlayer && (
                   <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs">
                     <span className="text-slate-400 font-medium">Your Stack:</span>
@@ -1166,8 +1195,11 @@
                 </div>
               </div>
 
-              {/* Row 2: Pot-Size Sizing Shortcuts */}
-              <div className="flex items-center justify-between gap-4 w-full">
+              {/* Vertical Separator line */}
+              <div className="h-8 w-[1px] bg-slate-800/80 hidden md:block"></div>
+
+              {/* Right Side: Pot-Size Sizing Shortcuts & Custom Raise */}
+              <div className="flex items-center gap-4 flex-1 justify-end">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] text-slate-500 font-bold uppercase mr-1">Sizings:</span>
                   <button 
@@ -1200,7 +1232,7 @@
                   </button>
                 </div>
 
-                {/* Custom Raise Slider/Input Block */}
+                {/* Custom Raise Box */}
                 <div className="flex items-center gap-2 pl-4 border-l border-slate-800/80">
                   <div className="flex flex-col items-end">
                     <input 
@@ -1211,7 +1243,7 @@
                       onChange={(e) => setCustomRaiseAmount(Math.max(1, Math.min(activePlayer ? activePlayer.stack : 1000, Number(e.target.value))))}
                       className="bg-slate-900 border border-slate-800 rounded px-2 py-1 w-16 text-center mono-font font-bold text-yellow-400 focus:outline-none"
                     />
-                    <span className="text-[8px] text-slate-600 mt-0.5">
+                    <span className="text-[8px] text-slate-600 mt-0.5 font-sans">
                       Max: ${activePlayer ? activePlayer.stack : 'N/A'}
                     </span>
                   </div>
@@ -1229,7 +1261,7 @@
             </div>
           </div>
 
-          {/* ================= BOTTOM FOOTER: SPLIT SECTION ================= */}
+          {/* ================= STREAMING_CHUNK: BOTTOM FOOTER: SPLIT SECTION ================= */}
           <div className="h-44 bg-slate-950 border-t border-slate-800 flex text-sm z-10">
             
             {/* Left Box: Large Active Seat Hand Display */}
