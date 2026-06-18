@@ -394,6 +394,9 @@
       const [rangeMatrixSelection, setRangeMatrixSelection] = useState({});
       const [activeTooltip, setActiveTooltip] = useState(null);
       const [showdownData, setShowdownData] = useState(null);
+      
+      const [preflopRaiseCount, setPreflopRaiseCount] = useState(0);
+      const [threeBettorId, setThreeBettorId] = useState(null);
 
       const logsEndRef = useRef(null);
 
@@ -455,6 +458,8 @@
         setCurrentBet(2);
         setStreet('preflop');
         setShowdownData(null);
+        setPreflopRaiseCount(0);
+        setThreeBettorId(null);
         
         const utgIndex = (dealerIndex + 3) % playerCount;
         setActionIndex(utgIndex);
@@ -693,6 +698,16 @@
               s.acted = false;
             }
           });
+          
+          if (street === 'preflop') {
+            setPreflopRaiseCount(prev => {
+              const nextCount = prev + 1;
+              if (nextCount >= 2) {
+                setThreeBettorId(player.id);
+              }
+              return nextCount;
+            });
+          }
         }
 
         appendLog(`${player.name} ${actionName} to $${finalTotalContribution} (invested $${addedInvestment})`);
@@ -1063,9 +1078,9 @@
                 </div>
 
                 {/* Coordinates mapping of seat pods around the ellipse */}
-                {}
                 {seats.map((seat, index) => {
                   const isActive = index === actionIndex;
+                  const isThreeBettor = seat.id === threeBettorId;
                   const angle = (index * (360 / playerCount)) * (Math.PI / 180);
                   
                   // Math coordinates representing seat center positions
@@ -1080,23 +1095,20 @@
                       style={{ top: `${topPos}px`, left: `${leftPos}px` }}
                       className="absolute w-28 flex flex-col items-center z-10"
                     >
-                      {/* Current Bet display - pointing toward the center pot */}
-                      {seat.bet > 0 && (
-                        <div className="mb-1 bg-slate-950 border border-slate-800 text-amber-400 mono-font font-bold text-[10px] px-2 py-0.5 rounded shadow-lg flex items-center gap-1 animate-pulse">
-                          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                          ${seat.bet}
-                        </div>
-                      )}
-
-                      {/* Player Pod Display */}
+                      {/* Player Pod Display with dynamic crimson outline for 3-Bettor */}
                       <div 
-                        className={`w-full bg-slate-950/90 backdrop-blur rounded-lg p-2 border shadow-xl transition-all ${isActive ? 'border-teal-400 ring-4 ring-teal-500/20 bg-slate-900 scale-105' : 'border-slate-800'} ${seat.isFolded ? 'opacity-30 grayscale' : ''}`}
+                        className={`w-full bg-slate-950/90 backdrop-blur rounded-lg p-2 border shadow-xl transition-all ${isActive ? 'border-teal-400 ring-4 ring-teal-500/20 bg-slate-900 scale-105' : isThreeBettor ? 'border-red-600 ring-4 ring-red-500/20 bg-slate-950/95' : 'border-slate-800'} ${seat.isFolded ? 'opacity-30 grayscale' : ''}`}
                       >
                         <div className="flex justify-between items-center text-[10px] font-bold">
                           <span className="text-slate-300 truncate max-w-[60px] flex items-center gap-1">
                             {seat.role && (
                               <span className="bg-amber-500 text-slate-950 font-black text-[8px] px-1 rounded">
                                 {seat.role}
+                              </span>
+                            )}
+                            {isThreeBettor && (
+                              <span className="bg-red-600 text-white font-black text-[7.5px] px-1 rounded tracking-tighter animate-pulse">
+                                AGG
                               </span>
                             )}
                             {seat.name}
@@ -1123,6 +1135,28 @@
                           ))}
                         </div>
                       </div>
+                    </div>
+                  );
+                })}
+
+                {}
+                {seats.map((seat, index) => {
+                  if (seat.bet <= 0 || seat.isFolded) return null;
+                  
+                  const angle = (index * (360 / playerCount)) * (Math.PI / 180);
+                  const betRX = 210; // Placed inside the inner ring closer to the center pot
+                  const betRY = 78;
+                  const betLeftPos = 390 + betRX * Math.cos(angle) - 24;
+                  const betTopPos = 170 + betRY * Math.sin(angle) - 10;
+
+                  return (
+                    <div 
+                      key={`bet-${seat.id}`}
+                      style={{ top: `${betTopPos}px`, left: `${betLeftPos}px` }}
+                      className="absolute bg-slate-950/95 border border-slate-800 text-amber-400 mono-font font-bold text-[10px] px-2.5 py-0.5 rounded shadow-lg flex items-center gap-1 z-20 animate-pulse"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                      ${seat.bet}
                     </div>
                   );
                 })}
