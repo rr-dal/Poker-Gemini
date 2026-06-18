@@ -242,7 +242,7 @@
     };
 
     const getPreflopPlayability = (cards) => {
-      if (!cards || cards.length < 2) return { label: "N/A", color: "text-slate-400" };
+      if (!cards || cards.length < 2) return { label: "N/A", color: "text-slate-400", strength: 0 };
       const v1 = valueMap[cards[0].value];
       const v2 = valueMap[cards[1].value];
       const isSuited = cards[0].suitName === cards[1].suitName;
@@ -253,28 +253,28 @@
       
       // Pocket Pairs
       if (high === low) {
-        if (high >= 10) return { label: "Premium Pocket Pair", color: "text-amber-400 font-extrabold animate-pulse" };
-        if (high >= 7) return { label: "Medium Pocket Pair", color: "text-teal-400 font-semibold" };
-        return { label: "Low Pocket Pair", color: "text-sky-400 font-medium" };
+        if (high >= 10) return { label: "Premium Pocket Pair", color: "text-amber-400 font-extrabold animate-pulse", strength: 95 };
+        if (high >= 7) return { label: "Medium Pocket Pair", color: "text-teal-400 font-semibold", strength: 75 };
+        return { label: "Low Pocket Pair", color: "text-sky-400 font-medium", strength: 55 };
       }
       
       if (isSuited) {
         if (high === 14) {
-          if (low >= 10) return { label: "Premium Suited Broadway", color: "text-emerald-400 font-bold" };
-          return { label: "Suited Ace", color: "text-teal-400 font-medium" };
+          if (low >= 10) return { label: "Premium Suited Broadway", color: "text-emerald-400 font-bold", strength: 90 };
+          return { label: "Suited Ace", color: "text-teal-400 font-medium", strength: 65 };
         }
-        if (high >= 11 && low >= 10) return { label: "Suited Broadway", color: "text-emerald-400 font-semibold" };
-        if (diff === 1 && high <= 11 && low >= 4) return { label: "Suited Connector", color: "text-emerald-500 font-bold" };
-        if (diff === 2 && high <= 12 && low >= 4) return { label: "Suited Gapper", color: "text-sky-400" };
-        if (high === 13) return { label: "Suited King", color: "text-slate-300" };
-        return { label: "Speculative Suited", color: "text-slate-400" };
+        if (high >= 11 && low >= 10) return { label: "Suited Broadway", color: "text-emerald-400 font-semibold", strength: 60 };
+        if (diff === 1 && high <= 11 && low >= 4) return { label: "Suited Connector", color: "text-emerald-500 font-bold", strength: 70 };
+        if (diff === 2 && high <= 12 && low >= 4) return { label: "Suited Gapper", color: "text-sky-400", strength: 45 };
+        if (high === 13) return { label: "Suited King", color: "text-slate-300", strength: 30 };
+        return { label: "Speculative Suited", color: "text-slate-400", strength: 15 };
       } else {
         // Offsuit
-        if (high === 14 && low >= 11) return { label: "Strong Offsuit Broadway", color: "text-teal-300 font-medium" };
-        if (high >= 12 && low >= 11) return { label: "Marginal Broadway", color: "text-slate-400" };
-        if (diff === 1 && high <= 11 && low >= 5) return { label: "Offsuit Connector", color: "text-slate-400" };
-        if (high === 14) return { label: "Weak Offsuit Ace", color: "text-red-400 font-medium" };
-        return { label: "Trash / Fold", color: "text-red-600 font-bold" };
+        if (high === 14 && low >= 11) return { label: "Strong Offsuit Broadway", color: "text-teal-300 font-medium", strength: 80 };
+        if (high >= 12 && low >= 11) return { label: "Marginal Broadway", color: "text-slate-400", strength: 25 };
+        if (diff === 1 && high <= 11 && low >= 5) return { label: "Offsuit Connector", color: "text-slate-400", strength: 40 };
+        if (high === 14) return { label: "Weak Offsuit Ace", color: "text-red-400 font-medium", strength: 20 };
+        return { label: "Trash / Fold", color: "text-red-600 font-bold", strength: 5 };
       }
     };
 
@@ -725,7 +725,7 @@
       const activePlayer = seats[actionIndex];
       
       const preflopRanking = useMemo(() => {
-        if (!activePlayer) return { label: "N/A", color: "text-slate-400" };
+        if (!activePlayer) return { label: "N/A", color: "text-slate-400", strength: 0 };
         return getPreflopPlayability(activePlayer.cards);
       }, [activePlayer]);
 
@@ -790,6 +790,9 @@
         if (!showdownData || !showdownData.players) return [];
         return showdownData.players.filter(p => !p.isFolded);
       }, [showdownData]);
+
+      // Detect if post-flop to gray out preflop rankings
+      const isPostFlop = street !== 'preflop' && street !== 'showdown';
 
       return (
         <div className="flex flex-col h-full bg-slate-950">
@@ -860,6 +863,7 @@
           </div>
 
           {/* ================= BAR 2: LIVE MATH & METRICS ================= */}
+          {}
           <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex flex-wrap items-center gap-6 text-xs text-slate-300 z-20">
             <span className="font-bold tracking-wider text-teal-400 uppercase flex items-center gap-1.5">
               <i data-lucide="activity" className="w-4 h-4"></i> Live Stats
@@ -867,13 +871,24 @@
             
             <div className="h-4 w-[1px] bg-slate-800"></div>
 
-            {/* Pre-flop Playability Ranking */}
+            {/* Pre-flop Playability Ranking with strength color bar */}
             {activePlayer && (
-              <div className="bg-slate-950 border border-slate-800/80 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-lg">
-                <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Pre-Flop:</span>
-                <span className={`font-extrabold uppercase tracking-wide text-[10px] ${preflopRanking.color}`}>
-                  {preflopRanking.label}
-                </span>
+              <div className={`bg-slate-950 border border-slate-800/80 px-2.5 py-1 rounded-md flex flex-col justify-center min-w-[150px] shadow-lg transition-opacity duration-300 ${isPostFlop ? 'opacity-40' : 'opacity-100'}`}>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Pre-Flop:</span>
+                  <span className={`font-extrabold uppercase tracking-wide text-[10px] ${isPostFlop ? 'text-slate-500' : preflopRanking.color}`}>
+                    {isPostFlop ? "Post-Flop (N/A)" : preflopRanking.label}
+                  </span>
+                </div>
+                {/* Strength Gradient Meter Bar */}
+                <div className="w-full h-1.5 bg-gradient-to-r from-red-600 via-yellow-500 to-emerald-500 rounded-full mt-1 relative">
+                  {!isPostFlop && (
+                    <div 
+                      style={{ left: `calc(${preflopRanking.strength}% - 4px)` }}
+                      className="absolute top-[-2px] w-2 h-2.5 rounded-full bg-white border border-slate-950 shadow transition-all duration-300"
+                    />
+                  )}
+                </div>
               </div>
             )}
 
@@ -983,6 +998,7 @@
           </div>
 
           {/* ================= CENTRAL AREA: SCALABLE TABLE ================= */}
+          {}
           <div className="flex-1 relative flex items-start justify-center pt-2 p-6 overflow-hidden">
             
             {/* Table Scaling HUD on top-right */}
@@ -1047,6 +1063,7 @@
                 </div>
 
                 {/* Coordinates mapping of seat pods around the ellipse */}
+                {}
                 {seats.map((seat, index) => {
                   const isActive = index === actionIndex;
                   const angle = (index * (360 / playerCount)) * (Math.PI / 180);
@@ -1110,10 +1127,10 @@
                   );
                 })}
 
-                {/* Showdown Overlay Container */}
+                {/* Showdown Overlay Container - Scaled 15% bigger with scale-[1.15] */}
                 {}
                 {showdownData && (
-                  <div className="absolute inset-2 bg-slate-950/95 backdrop-blur-md rounded-[150px] flex flex-col items-center justify-between p-6 z-50 shadow-2xl border-4 border-amber-500/30">
+                  <div className="absolute inset-2 bg-slate-950/95 backdrop-blur-md rounded-[150px] flex flex-col items-center justify-between p-6 z-50 shadow-2xl border-4 border-amber-500/30 scale-[1.15] transform transition-all duration-300">
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-2 text-amber-400 font-extrabold text-base uppercase tracking-widest animate-pulse">
                         <i data-lucide="trophy" className="w-4 h-4 text-amber-500"></i> Showdown Results
@@ -1133,7 +1150,7 @@
                             return (
                               <div 
                                 key={idx} 
-                                className={`w-9 h-13 bg-white rounded shadow-md flex flex-col justify-between p-1 transition-all duration-300 ${isWinningCard ? 'border-2 border-amber-400 scale-105 shadow-[0_0_12px_rgba(245,158,11,0.65)] ring-2 ring-amber-400/20' : 'opacity-30 border border-transparent'}`}
+                                className={`w-9 h-13 bg-white rounded shadow-md flex flex-col justify-between p-1 transition-all duration-300 ${isWinningCard ? 'border-2 border-amber-400 scale-105 shadow-[0_0_12px_rgba(245,158,11,0.65)] ring-2 ring-amber-400/20' : 'opacity-60 border border-transparent'}`}
                               >
                                 <span className={`text-[11px] font-bold leading-none ${card.color}`}>{card.value}</span>
                                 <span className={`text-right text-base font-bold leading-none ${card.color}`}>{card.suit}</span>
@@ -1145,13 +1162,14 @@
                     )}
 
                     {/* Below Community Board: Show only active remaining showdown players and highlight winner */}
+                    {/* Opacity bumped up to 70% and 60% respectively for much better readability per the requirements */}
                     <div className="w-full max-w-lg flex justify-center gap-3 overflow-x-auto px-4">
                       {remainingShowdownPlayers.map((p, idx) => {
                         const isWinner = showdownData.winners.some(w => w.name === p.name);
                         return (
                           <div 
                             key={idx} 
-                            className={`flex flex-col items-center p-2 rounded-lg border text-center transition-all duration-300 min-w-[120px] ${isWinner ? 'bg-amber-500/10 border-amber-500 shadow-[0_4px_12px_rgba(245,158,11,0.15)] scale-105' : 'bg-slate-900/40 border-slate-800 opacity-40 grayscale'}`}
+                            className={`flex flex-col items-center p-2 rounded-lg border text-center transition-all duration-300 min-w-[120px] ${isWinner ? 'bg-amber-500/10 border-amber-500 shadow-[0_4px_12px_rgba(245,158,11,0.15)] scale-105' : 'bg-slate-900/40 border-slate-800 opacity-70'}`}
                           >
                             <div className="flex items-center gap-1.5 text-[10px] mb-1 font-bold">
                               {isWinner ? (
@@ -1169,7 +1187,7 @@
                                 return (
                                   <span 
                                     key={cIdx} 
-                                    className={`w-7 h-10 bg-white text-slate-900 font-bold rounded flex flex-col justify-between p-0.5 border transition-all duration-300 ${isHoleCardInCombo ? 'border-2 border-amber-500 scale-105 shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'border-slate-300 opacity-30'}`}
+                                    className={`w-7 h-10 bg-white text-slate-900 font-bold rounded flex flex-col justify-between p-0.5 border transition-all duration-300 ${isHoleCardInCombo ? 'border-2 border-amber-500 scale-105 shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'border-slate-300 opacity-60'}`}
                                   >
                                     <span className={`text-[9px] leading-none ${c.color}`}>{c.value}</span>
                                     <span className={`text-right text-[12px] leading-none ${c.color}`}>{c.suit}</span>
@@ -1178,7 +1196,7 @@
                               })}
                             </div>
 
-                            <span className={`text-[9px] truncate max-w-[110px] ${isWinner ? 'text-amber-300 font-bold' : 'text-slate-500'}`}>
+                            <span className={`text-[9px] truncate max-w-[110px] ${isWinner ? 'text-amber-300 font-bold' : 'text-slate-400'}`}>
                               {p.desc}
                             </span>
                           </div>
@@ -1198,8 +1216,8 @@
               </div>
             </div>
 
-            {}
             {/* ================= ACTIONS HUD CONSOLE & BET SHORTCUTS ================= */}
+            {}
             <div className="absolute bottom-4 flex flex-row items-center justify-between bg-slate-950/95 backdrop-blur border border-slate-800 p-3 rounded-2xl shadow-2xl z-20 w-[95%] max-w-[1050px] gap-6">
               
               {/* Left Side: Core Action Suite & Stack Indicator */}
@@ -1264,6 +1282,13 @@
                     className="bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 disabled:opacity-30 px-3 py-1.5 rounded-md font-bold text-[10px] uppercase tracking-wider text-slate-300 transition-all"
                   >
                     1/2 Pot
+                  </button>
+                  <button 
+                    onClick={() => handleSizedBetShortcut(1.00)}
+                    disabled={!activePlayer || activePlayer.stack === 0}
+                    className="bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 disabled:opacity-30 px-3 py-1.5 rounded-md font-bold text-[10px] uppercase tracking-wider text-slate-300 transition-all font-black text-teal-400"
+                  >
+                    Pot
                   </button>
                   <button 
                     onClick={handleAllIn}
@@ -1349,6 +1374,7 @@
           </div>
 
           {/* ================= EXPANSION MODULE: RANGE MATRIX GRID OVERLAY ================= */}
+          {}
           {rangeGridOpen && (
             <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
               <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-4 shadow-2xl flex flex-col max-h-[90vh]">
