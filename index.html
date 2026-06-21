@@ -395,9 +395,8 @@
       const [activeTooltip, setActiveTooltip] = useState(null);
       const [showdownData, setShowdownData] = useState(null);
       
-      // Aggressor highlighting track state
-      const [preflopRaiseCount, setPreflopRaiseCount] = useState(0);
-      const [threeBettorId, setThreeBettorId] = useState(null);
+      // Aggressor highlighting track state (raises > $2 BB)
+      const [aggressorId, setAggressorId] = useState(null);
 
       const logsEndRef = useRef(null);
 
@@ -415,7 +414,7 @@
         if (window.lucide) {
           window.lucide.createIcons();
         }
-      }, [rangeGridOpen, showdownData, threeBettorId]);
+      }, [rangeGridOpen, showdownData, aggressorId]);
 
       const appendLog = (msg) => {
         setLogs(prev => [...prev, msg]);
@@ -459,8 +458,7 @@
         setCurrentBet(2);
         setStreet('preflop');
         setShowdownData(null);
-        setPreflopRaiseCount(0);
-        setThreeBettorId(null);
+        setAggressorId(null); // Reset aggressor for new hand
         
         const utgIndex = (dealerIndex + 3) % playerCount;
         setActionIndex(utgIndex);
@@ -568,6 +566,7 @@
               const active = !s.isFolded;
               const evalRes = active ? evaluate7CardHand(s.cards, nextBoard) : null;
               return {
+                id: s.id,
                 name: s.name,
                 cards: s.cards,
                 isFolded: s.isFolded,
@@ -612,6 +611,7 @@
             pot: totalWin,
             board: board,
             players: finalSeats.map(s => ({
+              id: s.id,
               name: s.name,
               cards: s.cards,
               isFolded: s.isFolded,
@@ -688,6 +688,7 @@
         player.bet = finalTotalContribution;
         player.acted = true;
 
+        // Check if this action raises the stakes above the current bet
         if (finalTotalContribution > currentBet) {
           setCurrentBet(finalTotalContribution);
           updated.forEach((s, idx) => {
@@ -696,14 +697,10 @@
             }
           });
           
-          if (street === 'preflop') {
-            setPreflopRaiseCount(prevCount => {
-              const nextCount = prevCount + 1;
-              if (nextCount >= 2) {
-                setThreeBettorId(player.id);
-              }
-              return nextCount;
-            });
+          // Track Aggressor: Any player who raises/bets above the $2 BB
+          if (finalTotalContribution > 2) {
+            setAggressorId(player.id);
+            appendLog(`[Initiative] ${player.name} is now the aggressor (raised/bet to $${finalTotalContribution})`);
           }
         }
 
@@ -988,7 +985,7 @@
               </div>
             </div>
 
-            {/* Visual Outs cards indicator */}
+            {/* Visual Outs cards indicator - High clarity mini-cards */}
             <div className="ml-auto flex items-center gap-2">
               <span className="text-slate-400 text-xs font-bold font-sans">Outs Cards:</span>
               <div className="flex gap-1.5 overflow-x-auto max-w-[280px] py-1">
@@ -1032,6 +1029,7 @@
                 </div>
               </div>
 
+              {}
               {/* Scaled Table Container Wrapper - set transformOrigin to top center */}
               <div 
                 style={{ transform: `scale(${tableScale})`, transformOrigin: 'top center' }}
@@ -1056,7 +1054,7 @@
                     </div>
                   </div>
 
-                  {/* Community Board Display */}
+                  {/* Community Board Display - Clean layout, dynamic scale in showdown */}
                   <div className="absolute bottom-1/3 flex gap-2 items-center">
                     {board.length === 0 ? (
                       <div className="px-6 py-2 border border-dashed border-teal-500/20 rounded-lg text-teal-500/30 font-bold tracking-widest text-xs uppercase">
@@ -1088,15 +1086,15 @@
                     )}
                   </div>
 
-                  {}
+                  {/* Player Seats - CLOCK-FACE ARRANGEMENT:
+                      Distributed evenly clockwise from 1 o'clock (Seat 1) to 11 o'clock (Seat 9).
+                      Formula distributes indices over a 300-degree arc (-60 deg to -120 deg). */}
                   {seats.map((seat, index) => {
                     const isActive = index === actionIndex;
-                    const isThreeBettor = seat.id === threeBettorId;
+                    const isAggressor = seat.id === aggressorId;
                     const isWinner = showdownData && showdownData.winners.some(w => w.name === seat.name);
                     
-                    // Clock positions (Pretend the table is a clock: Seat 1 at 1 o'clock, Seat 9 at 11 o'clock)
-                    // Clock hour mapping: 1 o'clock is -60 deg (-pi/3), 11 o'clock is -120 deg (-2pi/3). 
-                    // Clockwise progression spans 300 degrees from 1 o'clock down to 11 o'clock.
+                    // Clock face mapping
                     const totalSpan = 300 * Math.PI / 180;
                     const angle = -Math.PI / 3 + (index * totalSpan / (playerCount - 1));
                     
@@ -1107,15 +1105,16 @@
 
                     const revealHoleCards = isActive || (street === 'showdown' && !seat.isFolded);
 
+                    // Border, highlight and glowing shadow effects for aggressor and winner
                     let borderClass = 'border-slate-800';
                     if (isWinner) {
                       borderClass = 'border-amber-400 ring-4 ring-amber-500/40 bg-slate-900 scale-105 shadow-[0_0_15px_rgba(245,158,11,0.5)]';
                     } else if (isActive) {
-                      borderClass = isThreeBettor 
-                        ? 'border-red-600 ring-4 ring-red-500/30 bg-slate-900 scale-105 shadow-[0_0_15px_rgba(220,38,38,0.5)]'
+                      borderClass = isAggressor 
+                        ? 'border-red-600 ring-4 ring-red-500/30 bg-slate-900 scale-105 shadow-[0_0_15px_rgba(220,38,38,0.6)]'
                         : 'border-teal-400 ring-4 ring-teal-500/20 bg-slate-900 scale-105';
-                    } else if (isThreeBettor) {
-                      borderClass = 'border-red-600 ring-4 ring-red-500/20 bg-slate-950/95 shadow-[0_0_15px_rgba(220,38,38,0.4)]';
+                    } else if (isAggressor) {
+                      borderClass = 'border-red-600 ring-4 ring-red-500/20 bg-slate-950/95 shadow-[0_0_15px_rgba(220,38,38,0.5)]';
                     }
 
                     return (
@@ -1133,9 +1132,9 @@
                               {isWinner && (
                                 <i data-lucide="crown" className="w-3.5 h-3.5 text-amber-400 animate-bounce"></i>
                               )}
-                              {isThreeBettor && (
-                                <span className="bg-red-600 text-white font-black text-[7.5px] px-1 rounded tracking-tighter animate-pulse">
-                                  AGG
+                              {isAggressor && (
+                                <span className="bg-gradient-to-r from-red-600 to-rose-700 text-white font-extrabold text-[7px] px-1 py-0.5 rounded tracking-wide animate-pulse">
+                                  RAISE
                                 </span>
                               )}
                               {seat.name}
@@ -1143,7 +1142,7 @@
                             <span className="text-emerald-400 mono-font">${seat.stack}</span>
                           </div>
 
-                          {/* Hole cards representation */}
+                          {/* Hole cards representation - Scaled up Rank and Suit typography */}
                           <div className="flex gap-1.5 mt-1.5 justify-center">
                             {seat.cards.map((c, cIdx) => {
                               const isHoleWinner = isWinner && showdownData.winners.some(w => w.cards && w.cards.some(wc => wc.value === c.value && wc.suit === c.suit));
@@ -1169,7 +1168,7 @@
                     );
                   })}
 
-                  {}
+                  {/* Felt-ward Positioned Bets - Placed inner circle closer to pot */}
                   {seats.map((seat, index) => {
                     if (seat.bet <= 0 || seat.isFolded) return null;
                     
@@ -1192,7 +1191,7 @@
                     );
                   })}
 
-                  {}
+                  {/* Dealer, SB, BB circular buttons - positioned elegantly on the felt outside player cards */}
                   {seats.map((seat, index) => {
                     if (!seat.role || seat.isFolded) return null;
                     
@@ -1219,13 +1218,13 @@
                     );
                   })}
 
-                  {/* Embedded Showdown Table HUD inside central felt */}
+                  {/* Embedded Showdown Table HUD inside central felt (No Pop-ups, staying on table) */}
                   {showdownData && (
-                    <div className="absolute bottom-[6%] bg-slate-950/95 border border-amber-500/40 rounded-xl px-5 py-2.5 flex flex-col items-center gap-2 shadow-2xl z-40 max-w-[340px] text-center transform scale-105 animate-fade-in">
+                    <div className="absolute bottom-[6%] bg-slate-950/95 border border-amber-500/40 rounded-xl px-5 py-2.5 flex flex-col items-center gap-2 shadow-2xl z-40 max-w-[340px] text-center transform scale-[1.15] animate-fade-in">
                       <div className="flex items-center justify-center gap-1.5 text-amber-400 font-extrabold text-xs uppercase tracking-wider">
                         <i data-lucide="trophy" className="w-3.5 h-3.5 animate-bounce"></i> Showdown Winners
                       </div>
-                      <div className="text-[10px] text-slate-300">
+                      <div className="text-[10px] text-slate-300 leading-relaxed">
                         {showdownData.winners.map(w => w.name).join(' & ')} wins <span className="text-emerald-400 font-bold">${showdownData.pot}</span> with <span className="text-amber-300 font-bold">{showdownData.winners[0]?.desc}</span>
                       </div>
                       <button 
@@ -1240,7 +1239,9 @@
                 </div>
               </div>
 
+              {}
               {/* ================= ACTIONS HUD CONSOLE & BET SHORTCUTS ================= */}
+              {/* Organized as a single sleek row, completely eliminating vertical stacking and saving table space */}
               <div className="w-full max-w-[1050px] bg-slate-900/90 backdrop-blur border border-slate-800 p-3 rounded-2xl shadow-2xl z-20 flex flex-row items-center justify-between gap-6">
                 
                 {/* Left Side: Hand Actions Suite & Stack Indicator */}
@@ -1281,7 +1282,7 @@
                 {/* Vertical Divider */}
                 <div className="h-8 w-[1px] bg-slate-800/80 hidden md:block"></div>
 
-                {/* Right Side: Pot Sizing Shortcuts & Custom Raises */}
+                {/* Right Side: Pot Sizing Shortcuts & Custom Raises (Includes FULL POT bet option) */}
                 <div className="flex items-center gap-4 flex-1 justify-end">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] text-slate-500 font-bold uppercase mr-1">Sizings:</span>
@@ -1351,8 +1352,8 @@
               </div>
             </div>
 
-            {/* Right Portion: Unified Sidebar Hand History Feed */}
             {}
+            {/* Right Portion: Unified Sidebar Hand History Feed (Repositioned to the right of the table) */}
             <div className="w-80 md:w-96 border-l border-slate-800 bg-slate-950 flex flex-col h-full p-4 relative z-20">
               <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3 flex items-center gap-1.5">
                 <i data-lucide="scroll-text" className="w-4 h-4 text-slate-400"></i> Hand History Stream
@@ -1394,7 +1395,6 @@
                 </div>
 
                 {/* 13x13 Grid */}
-                {}
                 <div 
                   style={{ display: 'grid', gridTemplateColumns: 'repeat(13, minmax(0, 1fr))' }}
                   className="gap-1 overflow-y-auto my-3 p-1 bg-slate-950 rounded-lg border border-slate-800"
