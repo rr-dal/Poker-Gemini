@@ -390,7 +390,7 @@
         logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, [logs]);
 
-      // Initialize Game
+      // Initialize Game / Maintain seat structures across hand shuffles
       useEffect(() => {
         startNewHand();
       }, [playerCount, buyIn, dealerIndex]);
@@ -399,7 +399,7 @@
         if (window.lucide) {
           window.lucide.createIcons();
         }
-      }, [rangeGridOpen, showdownData, aggressorId]);
+      }, [rangeGridOpen, showdownData, aggressorId, seats]);
 
       const appendLog = (msg) => {
         setLogs(prev => [...prev, msg]);
@@ -408,38 +408,51 @@
       const startNewHand = () => {
         let freshDeck = shuffle(buildDeck());
         
-        const newSeats = Array.from({ length: playerCount }, (_, i) => {
-          const isDealer = i === dealerIndex;
-          const isSB = i === (dealerIndex + 1) % playerCount;
-          const isBB = i === (dealerIndex + 2) % playerCount;
-          
-          let initialBet = 0;
-          let currentStack = buyIn;
+        setSeats(prevSeats => {
+          const newSeats = Array.from({ length: playerCount }, (_, i) => {
+            const isDealer = i === dealerIndex;
+            const isSB = i === (dealerIndex + 1) % playerCount;
+            const isBB = i === (dealerIndex + 2) % playerCount;
+            
+            let initialBet = 0;
+            // Preserving existing stack sizes, re-buys, and investments across shuffles
+            const existingSeat = prevSeats && prevSeats.find(s => s.id === i);
+            
+            let currentStack = existingSeat ? existingSeat.stack : buyIn;
+            let currentRebuys = existingSeat ? (existingSeat.rebuys || 0) : 0;
+            let currentInvested = existingSeat ? (existingSeat.totalInvested || buyIn) : buyIn;
 
-          if (isSB) {
-            initialBet = 1;
-            currentStack -= 1;
-          } else if (isBB) {
-            initialBet = 2;
-            currentStack -= 2;
-          }
+            if (isSB) {
+              initialBet = Math.min(1, currentStack);
+              currentStack -= initialBet;
+            } else if (isBB) {
+              initialBet = Math.min(2, currentStack);
+              currentStack -= initialBet;
+            }
 
-          return {
-            id: i,
-            name: i === dealerIndex ? `Dealer (Seat ${i+1})` : i === (dealerIndex + 1) % playerCount ? `SB (Seat ${i+1})` : i === (dealerIndex + 2) % playerCount ? `BB (Seat ${i+1})` : `Seat ${i+1}`,
-            stack: currentStack,
-            bet: initialBet,
-            cards: [freshDeck.pop(), freshDeck.pop()],
-            isFolded: false,
-            acted: false,
-            role: isDealer ? 'D' : isSB ? 'SB' : isBB ? 'BB' : ''
-          };
+            return {
+              id: i,
+              name: i === dealerIndex ? `Dealer (Seat ${i+1})` : i === (dealerIndex + 1) % playerCount ? `SB (Seat ${i+1})` : i === (dealerIndex + 2) % playerCount ? `BB (Seat ${i+1})` : `Seat ${i+1}`,
+              stack: currentStack,
+              bet: initialBet,
+              cards: [freshDeck.pop(), freshDeck.pop()],
+              isFolded: false,
+              acted: false,
+              role: isDealer ? 'D' : isSB ? 'SB' : isBB ? 'BB' : '',
+              rebuys: currentRebuys,
+              totalInvested: currentInvested
+            };
+          });
+
+          // Calculate correct pot on deal based on blinds posted
+          const blindsPosted = newSeats.reduce((acc, s) => acc + s.bet, 0);
+          setPot(blindsPosted);
+
+          return newSeats;
         });
 
         setDeck(freshDeck);
-        setSeats(newSeats);
         setBoard([]);
-        setPot(3); // SB (1) + BB (2)
         setCurrentBet(2);
         setStreet('preflop');
         setShowdownData(null);
@@ -456,9 +469,27 @@
       };
 
       const handleResetGame = () => {
+        // Full hard-reset
+        setSeats([]);
         setDealerIndex(0);
         setShowdownData(null);
-        startNewHand();
+        setTimeout(() => startNewHand(), 100);
+      };
+
+      // Manual re-buy capability
+      const triggerRebuy = (playerId) => {
+        setSeats(prev => prev.map(s => {
+          if (s.id === playerId) {
+            return {
+              ...s,
+              stack: s.stack + buyIn,
+              rebuys: (s.rebuys || 0) + 1,
+              totalInvested: (s.totalInvested || buyIn) + buyIn
+            };
+          }
+          return s;
+        }));
+        appendLog(`Seat ${playerId + 1} rebuys for $${buyIn}!`);
       };
 
       const advanceStreet = (currentStreet, updatedSeats) => {
@@ -577,6 +608,112 @@
         setActionIndex(activeIdx);
       };
 
+      const runAllInShowdown = (currentSeats, currentStreet, currentBoard, currentDeck) => {
+        let tempBoard = [...currentBoard];
+        let tempDeck = [...currentDeck];
+        let tempStreet = currentStreet;
+        let tempSeats = currentSeats.map(s => ({ ...s, bet: 0, acted: false }));
+        
+        let totalStreetBets = currentSeats.reduce((acc, s) => acc + s.bet, 0);
+        let tempPot = pot + totalStreetBets;
+
+        appendLog(`[All-In Action] No further actions possible. Performing immediate board runout...`);
+
+        while (tempStreet !== 'showdown') {
+          if (tempStreet === 'preflop') {
+            tempDeck.pop(); // Burn
+            tempBoard = [tempDeck.pop(), tempDeck.pop(), tempDeck.pop()];
+            tempStreet = 'flop';
+            appendLog(`--- FLOP DEALT (Runout): [${tempBoard.map(c => c.value + c.suit).join(' ')}] ---`);
+          } else if (tempStreet === 'flop') {
+            tempDeck.pop(); // Burn
+            tempBoard.push(tempDeck.pop());
+            tempStreet = 'turn';
+            appendLog(`--- TURN DEALT (Runout): [${tempBoard[3].value}${tempBoard[3].suit}] ---`);
+          } else if (tempStreet === 'turn') {
+            tempDeck.pop(); // Burn
+            tempBoard.push(tempDeck.pop());
+            tempStreet = 'river';
+            appendLog(`--- RIVER DEALT (Runout): [${tempBoard[4].value}${tempBoard[4].suit}] ---`);
+          } else if (tempStreet === 'river') {
+            tempStreet = 'showdown';
+          }
+        }
+
+        // Evaluate Winners of the Runout
+        const activePlayers = tempSeats.filter(s => !s.isFolded);
+        const evaluatedResults = activePlayers.map(s => ({
+          ...s,
+          handEval: evaluate7CardHand(s.cards, tempBoard)
+        }));
+
+        let winners = [];
+        let bestHand = null;
+
+        evaluatedResults.forEach(p => {
+          if (!bestHand) {
+            bestHand = p.handEval;
+            winners = [p];
+          } else {
+            if (p.handEval.score > bestHand.score) {
+              bestHand = p.handEval;
+              winners = [p];
+            } else if (p.handEval.score === bestHand.score) {
+              let isTie = true;
+              for (let i = 0; i < p.handEval.tieBreakers.length; i++) {
+                if (p.handEval.tieBreakers[i] > bestHand.tieBreakers[i]) {
+                  bestHand = p.handEval;
+                  winners = [p];
+                  isTie = false;
+                  break;
+                } else if (p.handEval.tieBreakers[i] < bestHand.tieBreakers[i]) {
+                  isTie = false;
+                  break;
+                }
+              }
+              if (isTie) {
+                winners.push(p);
+              }
+            }
+          }
+        });
+
+        const winAmount = Math.floor(tempPot / winners.length);
+        const finalSeats = tempSeats.map(s => {
+          const isWinner = winners.some(w => w.id === s.id);
+          if (isWinner) {
+            return { ...s, stack: s.stack + winAmount };
+          }
+          return s;
+        });
+
+        setPot(tempPot);
+        setDeck(tempDeck);
+        setBoard(tempBoard);
+        setStreet('showdown');
+        setSeats(finalSeats);
+        setCurrentBet(0);
+        setShowdownData({
+          winners: winners.map(w => ({ name: w.name, desc: w.handEval.description, cards: w.handEval.cards })),
+          pot: tempPot,
+          board: tempBoard,
+          players: tempSeats.map(s => {
+            const active = !s.isFolded;
+            const evalRes = active ? evaluate7CardHand(s.cards, tempBoard) : null;
+            return {
+              id: s.id,
+              name: s.name,
+              cards: s.cards,
+              isFolded: s.isFolded,
+              desc: s.isFolded ? "Folded" : evalRes.description,
+              handEval: evalRes
+            };
+          })
+        });
+
+        appendLog(`Showdown Won by: ${winners.map(w => w.name).join(' and ')} holding: ${bestHand.description}`);
+      };
+
       const processAction = (updatedSeats) => {
         const activeNonFolded = updatedSeats.filter(s => !s.isFolded);
         
@@ -609,6 +746,18 @@
 
         const allActed = activeNonFolded.every(s => s.acted);
         const uniqueBets = [...new Set(activeNonFolded.map(s => s.bet))];
+
+        // All-In Evaluation: Check if any further betting is possible
+        const playersWithChips = activeNonFolded.filter(s => s.stack > 0);
+        const allActedOrAllIn = activeNonFolded.every(s => s.acted || s.stack === 0);
+        const maxBet = Math.max(...activeNonFolded.map(s => s.bet));
+        const allBetsEqualOrAllIn = activeNonFolded.every(s => s.bet === maxBet || s.stack === 0);
+
+        if (allActedOrAllIn && allBetsEqualOrAllIn && playersWithChips.length <= 1) {
+          // Trigger immediate board runout
+          runAllInShowdown(updatedSeats, street, board, deck);
+          return;
+        }
 
         if (allActed && uniqueBets.length === 1) {
           advanceStreet(street, updatedSeats);
@@ -777,11 +926,6 @@
         }
         return arr;
       }, []);
-
-      const remainingShowdownPlayers = useMemo(() => {
-        if (!showdownData || !showdownData.players) return [];
-        return showdownData.players.filter(p => !p.isFolded);
-      }, [showdownData]);
 
       const isPostFlop = street !== 'preflop' && street !== 'showdown';
 
@@ -970,7 +1114,6 @@
               </div>
             </div>
 
-            {}
             {/* Visual Outs cards indicator - High clarity mini-cards */}
             <div className="ml-auto flex items-center gap-2">
               <span className="text-slate-400 text-xs font-bold font-sans">Outs Cards:</span>
@@ -1015,7 +1158,6 @@
                 </div>
               </div>
 
-              {}
               {/* Scaled Table Container Wrapper - set transformOrigin to top center */}
               <div 
                 style={{ transform: `scale(${tableScale})`, transformOrigin: 'top center' }}
@@ -1072,7 +1214,6 @@
                     )}
                   </div>
 
-                  {}
                   {/* Player Seats - CLOCK-FACE ARRANGEMENT:
                       Distributed evenly clockwise from 1 o'clock (Seat 1) to 11 o'clock (Seat 9).
                       Formula distributes indices over a 300-degree arc (-60 deg to -120 deg). */}
@@ -1108,7 +1249,8 @@
                       <div 
                         key={seat.id}
                         style={{ top: `${topPos}px`, left: `${leftPos}px` }}
-                        className="absolute w-28 flex flex-col items-center z-10 animate-fade-in"
+                        className="absolute w-28 flex flex-col items-center z-10 animate-fade-in cursor-help"
+                        title={`Seat ${seat.id + 1}\nStack: $${seat.stack}\nTotal Invested: $${seat.totalInvested || buyIn}\nRebuys: ${seat.rebuys || 0}`}
                       >
                         {/* Player Pod Display */}
                         <div 
@@ -1126,11 +1268,18 @@
                               )}
                               {seat.name}
                             </span>
-                            <span className="text-emerald-400 mono-font">${seat.stack}</span>
+                            <div className="flex flex-col items-end">
+                              <span className="text-emerald-400 mono-font">${seat.stack}</span>
+                              {seat.rebuys > 0 && (
+                                <span className="text-[8px] text-red-500 font-extrabold tracking-tight mt-0.5 animate-pulse">
+                                  REBUY (x{seat.rebuys})
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           {/* Hole cards representation - Scaled up Rank and Suit typography */}
-                          <div className="flex gap-1.5 mt-1.5 justify-center">
+                          <div className="flex gap-1.5 mt-1.5 justify-center relative">
                             {seat.cards.map((c, cIdx) => {
                               const isHoleWinner = isWinner && showdownData.winners.some(w => w.cards && w.cards.some(wc => wc.value === c.value && wc.suit === c.suit));
                               return (
@@ -1149,6 +1298,18 @@
                                 </div>
                               );
                             })}
+
+                            {/* Rebuy Interactive Button for broke seats */}
+                            {seat.stack === 0 && (
+                              <div className="absolute inset-0 bg-slate-950/80 flex items-center justify-center rounded transition-all">
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); triggerRebuy(seat.id); }}
+                                  className="bg-red-600 hover:bg-red-500 text-white font-black text-[9px] px-2.5 py-1 rounded-md uppercase tracking-wider transition-all shadow-md animate-pulse z-30"
+                                >
+                                  Rebuy
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1226,7 +1387,6 @@
                 </div>
               </div>
 
-              {}
               {/* ================= ACTIONS HUD CONSOLE & BET SHORTCUTS ================= */}
               {/* Organized as a single sleek row, completely eliminating vertical stacking and saving table space */}
               <div className="w-full max-w-[1050px] bg-slate-900/90 backdrop-blur border border-slate-800 p-3 rounded-2xl shadow-2xl z-20 flex flex-row items-center justify-between gap-6">
@@ -1339,7 +1499,6 @@
               </div>
             </div>
 
-            {}
             {/* Right Portion: Unified Sidebar Hand History Feed (Repositioned to the right of the table) */}
             <div className="w-80 md:w-96 border-l border-slate-800 bg-slate-950 flex flex-col h-full p-4 relative z-20">
               <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3 flex items-center gap-1.5">
@@ -1381,7 +1540,6 @@
                   Assign hand ranges to this practice seat. Highlight grid coordinates to study position ranges (e.g. UTG Open RFI vs BB Defense range).
                 </div>
 
-                {}
                 {/* 13x13 Grid */}
                 <div 
                   style={{ display: 'grid', gridTemplateColumns: 'repeat(13, minmax(0, 1fr))' }}
