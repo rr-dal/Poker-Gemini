@@ -298,78 +298,63 @@
     };
 
     const evaluateOuts = (hole, board) => {
-      if (board.length < 3) return { count: 0, cards: [] };
-      const combined = [...hole, ...board];
+      // Outs are only mathematically relevant on Flop (3 cards) or Turn (4 cards)
+      if (board.length !== 3 && board.length !== 4) {
+        return { count: 0, cards: [] };
+      }
+
+      const currentHand = evaluate7CardHand(hole, board);
+      const fullDeck = buildDeck();
+      
+      // Track which cards are already unavailable (hole cards + community cards)
+      const unavailable = [...hole, ...board];
+      const remainingDeck = fullDeck.filter(deckCard => {
+        return !unavailable.some(unavCard => 
+          unavCard.value === deckCard.value && unavCard.suit === deckCard.suit
+        );
+      });
+
       const outs = [];
 
-      // Check Flush Draws (Exactly 4 of same suit)
-      const suitCounts = {};
-      combined.forEach(c => suitCounts[c.suitName] = (suitCounts[c.suitName] || 0) + 1);
-      
-      const flushSuit = Object.keys(suitCounts).find(s => suitCounts[s] === 4);
-      if (flushSuit) {
-        const activeSuitSymbol = SUITS.find(s => s.name === flushSuit);
-        VALUES.forEach(v => {
-          const exists = combined.some(c => c.value === v && c.suitName === flushSuit);
-          if (!exists && activeSuitSymbol) {
-            outs.push({ value: v, suit: activeSuitSymbol.symbol, color: activeSuitSymbol.color });
+      // Simulate drawing every possible single remaining card
+      remainingDeck.forEach(card => {
+        const nextBoard = [...board, card];
+        const newHand = evaluate7CardHand(hole, nextBoard);
+
+        let isImprovement = false;
+
+        if (newHand.score > currentHand.score) {
+          isImprovement = true;
+        } else if (newHand.score === currentHand.score && currentHand.score > 0) {
+          // If score is the same, only count as an out if we made a higher hand of the same category
+          // e.g., upgrading a pair, set, or straight/flush value (avoids simple kicker clutters)
+          if (currentHand.score === 1) { // One Pair -> Higher One Pair
+            if (newHand.tieBreakers[0] > currentHand.tieBreakers[0]) {
+              isImprovement = true;
+            }
+          } else if (currentHand.score === 2) { // Two Pair -> Better Two Pair
+            if (newHand.tieBreakers[0] > currentHand.tieBreakers[0] || newHand.tieBreakers[1] > currentHand.tieBreakers[1]) {
+              isImprovement = true;
+            }
+          } else if (currentHand.score === 3) { // Three of a Kind -> Better Trips
+            if (newHand.tieBreakers[0] > currentHand.tieBreakers[0]) {
+              isImprovement = true;
+            }
+          } else { // Straights, Flushes, Full Houses -> Better straight/flush/boat value
+            if (newHand.tieBreakers[0] > currentHand.tieBreakers[0]) {
+              isImprovement = true;
+            }
           }
-        });
-      }
-
-      // Check Straight Draws (OESD & Gutshots)
-      const valIndices = combined.map(c => VALUES.indexOf(c.value)).sort((a,b) => a - b);
-      const uniqueIndices = [...new Set(valIndices)];
-      
-      for (let i = 0; i <= uniqueIndices.length - 4; i++) {
-        const slice = uniqueIndices.slice(i, i + 4);
-        if (slice[3] - slice[0] === 3) {
-          const lowerOutVal = VALUES[slice[0] - 1];
-          const upperOutVal = VALUES[slice[3] + 1];
-          
-          SUITS.forEach(s => {
-            if (lowerOutVal && !combined.some(c => c.value === lowerOutVal && c.suit === s.symbol)) {
-              outs.push({ value: lowerOutVal, suit: s.symbol, color: s.color });
-            }
-            if (upperOutVal && !combined.some(c => c.value === upperOutVal && c.suit === s.symbol)) {
-              outs.push({ value: upperOutVal, suit: s.symbol, color: s.color });
-            }
-          });
         }
-      }
 
-      // Check pocket pairs improving to sets
-      if (hole.length === 2 && hole[0].value === hole[1].value) {
-        const matchingVal = hole[0].value;
-        const existsOnBoard = board.some(c => c.value === matchingVal);
-        if (!existsOnBoard) {
-          SUITS.forEach(s => {
-            if (!combined.some(c => c.value === matchingVal && c.suit === s.symbol)) {
-              outs.push({ value: matchingVal, suit: s.symbol, color: s.color });
-            }
-          });
+        if (isImprovement) {
+          outs.push(card);
         }
-      }
-
-      // Check unpaired cards improving to Top Pair
-      if (hole.length === 2 && hole[0].value !== hole[1].value) {
-        const boardValues = board.map(c => valueMap[c.value]);
-        const highestBoardVal = Math.max(...boardValues, 0);
-        
-        [hole[0].value, hole[1].value].forEach(val => {
-          if (valueMap[val] > highestBoardVal) {
-            SUITS.forEach(s => {
-              if (!combined.some(c => c.value === val && c.suit === s.symbol)) {
-                outs.push({ value: val, suit: s.symbol, color: s.color });
-              }
-            });
-          }
-        });
-      }
+      });
 
       return {
-        count: [...new Set(outs.map(o => o.value))].length * 4,
-        cards: outs.slice(0, 12)
+        count: outs.length,
+        cards: outs
       };
     };
 
@@ -985,6 +970,7 @@
               </div>
             </div>
 
+            {}
             {/* Visual Outs cards indicator - High clarity mini-cards */}
             <div className="ml-auto flex items-center gap-2">
               <span className="text-slate-400 text-xs font-bold font-sans">Outs Cards:</span>
@@ -1086,6 +1072,7 @@
                     )}
                   </div>
 
+                  {}
                   {/* Player Seats - CLOCK-FACE ARRANGEMENT:
                       Distributed evenly clockwise from 1 o'clock (Seat 1) to 11 o'clock (Seat 9).
                       Formula distributes indices over a 300-degree arc (-60 deg to -120 deg). */}
@@ -1394,6 +1381,7 @@
                   Assign hand ranges to this practice seat. Highlight grid coordinates to study position ranges (e.g. UTG Open RFI vs BB Defense range).
                 </div>
 
+                {}
                 {/* 13x13 Grid */}
                 <div 
                   style={{ display: 'grid', gridTemplateColumns: 'repeat(13, minmax(0, 1fr))' }}
