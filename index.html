@@ -476,20 +476,26 @@
         setTimeout(() => startNewHand(), 100);
       };
 
-      // Manual re-buy capability
-      const triggerRebuy = (playerId) => {
-        setSeats(prev => prev.map(s => {
-          if (s.id === playerId) {
+      const handleAutomaticRebuys = (allSeats) => {
+        const updatedWithRebuys = allSeats.map(s => {
+          if (s.stack <= 0) {
+            const nextRebuys = (s.rebuys || 0) + 1;
+            const nextInvested = (s.totalInvested || buyIn) + buyIn;
+            // Append a notice to logs
+            setTimeout(() => {
+              appendLog(`[Auto-Rebuy] Seat ${s.id + 1} ran out of chips and was automatically rebought for $${buyIn}!`);
+            }, 100);
+
             return {
               ...s,
-              stack: s.stack + buyIn,
-              rebuys: (s.rebuys || 0) + 1,
-              totalInvested: (s.totalInvested || buyIn) + buyIn
+              stack: buyIn,
+              rebuys: nextRebuys,
+              totalInvested: nextInvested
             };
           }
           return s;
-        }));
-        appendLog(`Seat ${playerId + 1} rebuys for $${buyIn}!`);
+        });
+        return updatedWithRebuys;
       };
 
       const advanceStreet = (currentStreet, updatedSeats) => {
@@ -564,7 +570,9 @@
 
           const totalHandPot = pot + totalStreetBets;
           const winAmount = Math.floor(totalHandPot / winners.length);
-          const finalSeats = cleanedSeats.map(s => {
+          
+          // Distribute winnings
+          let finalSeats = cleanedSeats.map(s => {
             const isWinner = winners.some(w => w.id === s.id);
             if (isWinner) {
               return { ...s, stack: s.stack + winAmount };
@@ -572,13 +580,16 @@
             return s;
           });
 
+          // Process Auto-Rebuys for broke players at hand end
+          finalSeats = handleAutomaticRebuys(finalSeats);
+
           setSeats(finalSeats);
           setStreet('showdown');
           setShowdownData({
             winners: winners.map(w => ({ name: w.name, desc: w.handEval.description, cards: w.handEval.cards })),
             pot: totalHandPot,
             board: nextBoard,
-            players: cleanedSeats.map(s => {
+            players: finalSeats.map(s => {
               const active = !s.isFolded;
               const evalRes = active ? evaluate7CardHand(s.cards, nextBoard) : null;
               return {
@@ -679,13 +690,18 @@
         });
 
         const winAmount = Math.floor(tempPot / winners.length);
-        const finalSeats = tempSeats.map(s => {
+        
+        // Distribute winnings
+        let finalSeats = tempSeats.map(s => {
           const isWinner = winners.some(w => w.id === s.id);
           if (isWinner) {
             return { ...s, stack: s.stack + winAmount };
           }
           return s;
         });
+
+        // Auto-rebuy if stacks are dry
+        finalSeats = handleAutomaticRebuys(finalSeats);
 
         setPot(tempPot);
         setDeck(tempDeck);
@@ -725,7 +741,10 @@
           
           appendLog(`${winner.name} wins the pot of $${totalWin} (others folded)`);
           
-          const finalSeats = updatedSeats.map(s => ({ ...s, bet: 0, acted: false }));
+          let finalSeats = updatedSeats.map(s => ({ ...s, bet: 0, acted: false }));
+          // Check for auto-rebuys even on folds if someone ended with 0
+          finalSeats = handleAutomaticRebuys(finalSeats);
+
           setSeats(finalSeats);
           setStreet('showdown');
           setShowdownData({
@@ -1298,18 +1317,6 @@
                                 </div>
                               );
                             })}
-
-                            {/* Rebuy Interactive Button for broke seats */}
-                            {seat.stack === 0 && (
-                              <div className="absolute inset-0 bg-slate-950/80 flex items-center justify-center rounded transition-all">
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); triggerRebuy(seat.id); }}
-                                  className="bg-red-600 hover:bg-red-500 text-white font-black text-[9px] px-2.5 py-1 rounded-md uppercase tracking-wider transition-all shadow-md animate-pulse z-30"
-                                >
-                                  Rebuy
-                                </button>
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>
