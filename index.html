@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Solo Texas Hold'em Practice Trainer</title>
+  <title>Casino Prep: Solo Texas Hold'em Trainer</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Lucide Icons (Correct UMD Build) -->
+  <!-- Lucide Icons -->
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.435.0/dist/umd/lucide.min.js"></script>
   
-  <!-- React and ReactDOM (UMD Builds from stable CDN) -->
+  <!-- React and ReactDOM -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
   
-  <!-- Babel Standalone (Stable CDN) -->
+  <!-- Babel Standalone -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 
   <style>
@@ -23,7 +23,7 @@
     
     body {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: #0b0f19;
+      background-color: #05070c;
     }
     
     .mono-font {
@@ -46,9 +46,9 @@
       background: #334155;
     }
 
-    /* Felt radial gradient */
+    /* Professional Casino Felt Gradient */
     .table-felt {
-      background: radial-gradient(circle, #0f766e 0%, #115e59 60%, #134e4a 100%);
+      background: radial-gradient(circle, #065f46 0%, #044e3a 60%, #022c22 100%);
     }
 
     /* Range Matrix Styles */
@@ -76,9 +76,9 @@
 
     const SUITS = [
       { name: 'Hearts', symbol: '♥', color: 'text-red-500' },
-      { name: 'Diamonds', symbol: '♦', color: 'text-blue-500' }, // 4-color deck: Diamonds blue
-      { name: 'Clubs', symbol: '♣', color: 'text-green-500' },    // Clubs green
-      { name: 'Spades', symbol: '♠', color: 'text-slate-950' }    // Spades black
+      { name: 'Diamonds', symbol: '♦', color: 'text-blue-500' }, // 4-color deck
+      { name: 'Clubs', symbol: '♣', color: 'text-green-500' },    
+      { name: 'Spades', symbol: '♠', color: 'text-slate-950' }    
     ];
     
     const VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
@@ -86,24 +86,35 @@
     const METRICS_INFO = {
       potOdds: {
         title: "Pot Odds",
-        def: "The ratio of the current pot size to the cost of a call. For example, if you must call $10 to win a total pot of $40 (including your call), your pot odds are 4:1, requiring 25% equity."
+        def: "The ratio of the current total pot to the cost of your call. E.g., if you must call $10 to win a total pot of $40, your pot odds are 4:1 (requiring 20% equity to break even)."
       },
       eqReq: {
         title: "Equity Required",
-        def: "The exact minimum win probability you need to make a call profitable in the long run. Formula: Call Amount / (Current Pot + Call Amount)."
+        def: "The exact win probability you need to make this call mathematically profitable. Formula: Call Amount / (Total Pot + Call Amount)."
       },
       ruleEquity: {
         title: "Rule of 2 & 4 Equity",
-        def: "An accurate approximation of your hand's equity. On the flop, multiply your clean outs by 4. On the turn, multiply your clean outs by 2."
+        def: "Estimation of your drawing equity. On the flop, multiply your clean outs by 4. On the turn, multiply your clean outs by 2."
       },
       outs: {
-        title: "Outs Count & Visuals",
-        def: "The number of cards left in the deck that can improve your current holding to a stronger hand (e.g., straight or flush draws)."
+        title: "Exact Drawing Outs",
+        def: "Cards remaining in the deck that directly improve your hand rank or pair values. Calculated by simulating all potential runouts."
       },
       spr: {
         title: "Stack-to-Pot Ratio (SPR)",
-        def: "Calculated as Effective Stack / Pot. It defines how committed you are. Low SPR (< 3) means high commitment where folding top pair is difficult."
+        def: "Effective Stack / Total Pot. An SPR < 3 denotes commitment, meaning folding top-pair post-flop becomes highly difficult."
       }
+    };
+
+    const POSITION_NAMES = {
+      9: ["BTN", "SB", "BB", "UTG", "UTG+1", "MP", "LJ", "HJ", "CO"],
+      8: ["BTN", "SB", "BB", "UTG", "UTG+1", "MP", "HJ", "CO"],
+      7: ["BTN", "SB", "BB", "UTG", "MP", "HJ", "CO"],
+      6: ["BTN", "SB", "BB", "UTG", "HJ", "CO"],
+      5: ["BTN", "SB", "BB", "UTG", "CO"],
+      4: ["BTN", "SB", "BB", "CO"],
+      3: ["BTN", "SB", "BB"],
+      2: ["BTN", "BB"] // Heads Up
     };
 
     const valueMap = {
@@ -253,28 +264,28 @@
       
       // Pocket Pairs
       if (high === low) {
-        if (high >= 10) return { label: "Premium Pocket Pair", color: "text-amber-400 font-extrabold animate-pulse", strength: 95 };
-        if (high >= 7) return { label: "Medium Pocket Pair", color: "text-teal-400 font-semibold", strength: 75 };
-        return { label: "Low Pocket Pair", color: "text-sky-400 font-medium", strength: 55 };
+        if (high >= 10) return { label: "Premium Pair (AA-TT)", color: "text-emerald-400 font-extrabold", strength: 98 };
+        if (high >= 7) return { label: "Medium Pair (99-77)", color: "text-teal-400 font-semibold", strength: 78 };
+        return { label: "Low Pair (66-22)", color: "text-sky-400 font-medium", strength: 58 };
       }
       
       if (isSuited) {
         if (high === 14) {
-          if (low >= 10) return { label: "Premium Suited Broadway", color: "text-emerald-400 font-bold", strength: 90 };
-          return { label: "Suited Ace", color: "text-teal-400 font-medium", strength: 65 };
+          if (low >= 10) return { label: "Premium Suited Broadway", color: "text-emerald-400 font-bold", strength: 88 };
+          return { label: "Suited Ace", color: "text-teal-400 font-medium", strength: 68 };
         }
-        if (high >= 11 && low >= 10) return { label: "Suited Broadway", color: "text-emerald-400 font-semibold", strength: 60 };
-        if (diff === 1 && high <= 11 && low >= 4) return { label: "Suited Connector", color: "text-emerald-500 font-bold", strength: 70 };
-        if (diff === 2 && high <= 12 && low >= 4) return { label: "Suited Gapper", color: "text-sky-400", strength: 45 };
-        if (high === 13) return { label: "Suited King", color: "text-slate-300", strength: 30 };
-        return { label: "Speculative Suited", color: "text-slate-400", strength: 15 };
+        if (high >= 11 && low >= 10) return { label: "Suited Broadway", color: "text-emerald-400 font-semibold", strength: 72 };
+        if (diff === 1 && high <= 11 && low >= 4) return { label: "Suited Connector", color: "text-teal-500 font-bold", strength: 64 };
+        if (diff === 2 && high <= 12 && low >= 4) return { label: "Suited Gapper", color: "text-sky-400", strength: 48 };
+        if (high === 13) return { label: "Suited King", color: "text-slate-300", strength: 35 };
+        return { label: "Speculative Suited", color: "text-slate-400", strength: 22 };
       } else {
         // Offsuit
-        if (high === 14 && low >= 11) return { label: "Strong Offsuit Broadway", color: "text-teal-300 font-medium", strength: 80 };
-        if (high >= 12 && low >= 11) return { label: "Marginal Broadway", color: "text-slate-400", strength: 25 };
-        if (diff === 1 && high <= 11 && low >= 5) return { label: "Offsuit Connector", color: "text-slate-400", strength: 40 };
-        if (high === 14) return { label: "Weak Offsuit Ace", color: "text-red-400 font-medium", strength: 20 };
-        return { label: "Trash / Fold", color: "text-red-600 font-bold", strength: 5 };
+        if (high === 14 && low >= 11) return { label: "Strong Offsuit Broadway", color: "text-teal-300 font-medium", strength: 74 };
+        if (high >= 12 && low >= 11) return { label: "Marginal Broadway", color: "text-slate-400", strength: 30 };
+        if (diff === 1 && high <= 11 && low >= 5) return { label: "Offsuit Connector", color: "text-slate-400", strength: 38 };
+        if (high === 14) return { label: "Weak Offsuit Ace", color: "text-rose-400 font-medium", strength: 18 };
+        return { label: "Trash / Fold", color: "text-red-500 font-bold", strength: 5 };
       }
     };
 
@@ -298,7 +309,6 @@
     };
 
     const evaluateOuts = (hole, board) => {
-      // Outs are only mathematically relevant on Flop (3 cards) or Turn (4 cards)
       if (board.length !== 3 && board.length !== 4) {
         return { count: 0, cards: [] };
       }
@@ -306,7 +316,6 @@
       const currentHand = evaluate7CardHand(hole, board);
       const fullDeck = buildDeck();
       
-      // Track which cards are already unavailable (hole cards + community cards)
       const unavailable = [...hole, ...board];
       const remainingDeck = fullDeck.filter(deckCard => {
         return !unavailable.some(unavCard => 
@@ -316,32 +325,23 @@
 
       const outs = [];
 
-      // Simulate drawing every possible single remaining card
       remainingDeck.forEach(card => {
         const nextBoard = [...board, card];
         const newHand = evaluate7CardHand(hole, nextBoard);
 
         let isImprovement = false;
 
+        // Any upgrade in hand classification
         if (newHand.score > currentHand.score) {
           isImprovement = true;
         } else if (newHand.score === currentHand.score && currentHand.score > 0) {
-          // If score is the same, only count as an out if we made a higher hand of the same category
-          // e.g., upgrading a pair, set, or straight/flush value (avoids simple kicker clutters)
-          if (currentHand.score === 1) { // One Pair -> Higher One Pair
-            if (newHand.tieBreakers[0] > currentHand.tieBreakers[0]) {
-              isImprovement = true;
-            }
-          } else if (currentHand.score === 2) { // Two Pair -> Better Two Pair
+          // If holding a pair, does the card improve the pair value or top kicker?
+          if (currentHand.score === 1) { 
             if (newHand.tieBreakers[0] > currentHand.tieBreakers[0] || newHand.tieBreakers[1] > currentHand.tieBreakers[1]) {
               isImprovement = true;
             }
-          } else if (currentHand.score === 3) { // Three of a Kind -> Better Trips
-            if (newHand.tieBreakers[0] > currentHand.tieBreakers[0]) {
-              isImprovement = true;
-            }
-          } else { // Straights, Flushes, Full Houses -> Better straight/flush/boat value
-            if (newHand.tieBreakers[0] > currentHand.tieBreakers[0]) {
+          } else if (currentHand.score === 2) { 
+            if (newHand.tieBreakers[0] > currentHand.tieBreakers[0] || newHand.tieBreakers[1] > currentHand.tieBreakers[1]) {
               isImprovement = true;
             }
           }
@@ -359,38 +359,40 @@
     };
 
     function App() {
-      // --- APP CONFIGURATION ---
-      const [playerCount, setPlayerCount] = useState(9); // Default to 9 players
+      const [playerCount, setPlayerCount] = useState(9); 
       const [buyIn, setBuyIn] = useState(300);
       const [tableScale, setTableScale] = useState(0.95);
       const [rangeGridOpen, setRangeGridOpen] = useState(false);
+      const [cheatSheetOpen, setCheatSheetOpen] = useState(false);
+      const [simulateRake, setSimulateRake] = useState(true);
       
-      // --- GAME ENGINE STATE ---
+      // RNG Roll State
+      const [rngValue, setRngValue] = useState(null);
+
+      // GAME ENGINE STATE
       const [deck, setDeck] = useState([]);
       const [seats, setSeats] = useState([]);
       const [board, setBoard] = useState([]);
       const [pot, setPot] = useState(0);
       const [currentBet, setCurrentBet] = useState(0);
+      const [lastRaiseIncrement, setLastRaiseIncrement] = useState(2); // Minimum raise tracking (NL rules)
       const [actionIndex, setActionIndex] = useState(0);
       const [dealerIndex, setDealerIndex] = useState(0);
-      const [street, setStreet] = useState('preflop'); // preflop, flop, turn, river, showdown
+      const [street, setStreet] = useState('preflop'); 
       const [logs, setLogs] = useState([]);
       const [customRaiseAmount, setCustomRaiseAmount] = useState(10);
       const [rangeMatrixSelection, setRangeMatrixSelection] = useState({});
       const [activeTooltip, setActiveTooltip] = useState(null);
       const [showdownData, setShowdownData] = useState(null);
       
-      // Aggressor highlighting track state (raises > $2 BB)
       const [aggressorId, setAggressorId] = useState(null);
 
       const logsEndRef = useRef(null);
 
-      // Auto-scroll logs
       useEffect(() => {
         logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, [logs]);
 
-      // Initialize Game / Maintain seat structures across hand shuffles
       useEffect(() => {
         startNewHand();
       }, [playerCount, buyIn, dealerIndex]);
@@ -399,23 +401,37 @@
         if (window.lucide) {
           window.lucide.createIcons();
         }
-      }, [rangeGridOpen, showdownData, aggressorId, seats]);
+      }, [rangeGridOpen, showdownData, aggressorId, seats, cheatSheetOpen, rngValue]);
 
       const appendLog = (msg) => {
         setLogs(prev => [...prev, msg]);
       };
 
+      const getSeatLabel = (seatIdx) => {
+        const positions = POSITION_NAMES[playerCount];
+        if (!positions) return `Seat ${seatIdx + 1}`;
+        // Calculate offset relative to BTN (0)
+        const offset = (seatIdx - dealerIndex + playerCount) % playerCount;
+        return positions[offset] || `Seat ${seatIdx + 1}`;
+      };
+
+      const rollRng = () => {
+        const val = Math.floor(Math.random() * 100) + 1;
+        setRngValue(val);
+      };
+
       const startNewHand = () => {
         let freshDeck = shuffle(buildDeck());
+        setRngValue(null);
         
         setSeats(prevSeats => {
           const newSeats = Array.from({ length: playerCount }, (_, i) => {
+            const label = getSeatLabel(i);
             const isDealer = i === dealerIndex;
-            const isSB = i === (dealerIndex + 1) % playerCount;
-            const isBB = i === (dealerIndex + 2) % playerCount;
+            const isSB = label === "SB";
+            const isBB = label === "BB";
             
             let initialBet = 0;
-            // Preserving existing stack sizes, re-buys, and investments across shuffles
             const existingSeat = prevSeats && prevSeats.find(s => s.id === i);
             
             let currentStack = existingSeat ? existingSeat.stack : buyIn;
@@ -432,7 +448,7 @@
 
             return {
               id: i,
-              name: i === dealerIndex ? `Dealer (Seat ${i+1})` : i === (dealerIndex + 1) % playerCount ? `SB (Seat ${i+1})` : i === (dealerIndex + 2) % playerCount ? `BB (Seat ${i+1})` : `Seat ${i+1}`,
+              name: label,
               stack: currentStack,
               bet: initialBet,
               cards: [freshDeck.pop(), freshDeck.pop()],
@@ -444,7 +460,6 @@
             };
           });
 
-          // Calculate correct pot on deal based on blinds posted
           const blindsPosted = newSeats.reduce((acc, s) => acc + s.bet, 0);
           setPot(blindsPosted);
 
@@ -454,22 +469,31 @@
         setDeck(freshDeck);
         setBoard([]);
         setCurrentBet(2);
+        setLastRaiseIncrement(2); // Initial BB is $2 raise increment
         setStreet('preflop');
         setShowdownData(null);
-        setAggressorId(null); // Reset aggressor for new hand
+        setAggressorId(null); 
         
-        const utgIndex = (dealerIndex + 3) % playerCount;
+        // Find UTG position (under the gun acts first preflop)
+        let utgIndex = 0;
+        for (let i = 0; i < playerCount; i++) {
+          const checkLabel = POSITION_NAMES[playerCount][(i - dealerIndex + playerCount) % playerCount];
+          if (checkLabel === "UTG" || (playerCount === 2 && checkLabel === "BTN")) {
+            utgIndex = i;
+            break;
+          }
+        }
         setActionIndex(utgIndex);
         
         setLogs([
-          `--- New Hand Started ($1/$2 Blinds) ---`,
-          `Dealer Button placed at Seat ${dealerIndex + 1}`,
-          `SB posts $1, BB posts $2`
+          `--- New Hand Started ($1/$2 NL Cash Game) ---`,
+          `BTN (Dealer Button) at Seat ${dealerIndex + 1}`,
+          `SB posts $1, BB posts $2`,
+          `Pre-flop Action starts with UTG (Seat ${utgIndex + 1})`
         ]);
       };
 
       const handleResetGame = () => {
-        // Full hard-reset
         setSeats([]);
         setDealerIndex(0);
         setShowdownData(null);
@@ -481,9 +505,9 @@
           if (s.stack <= 0) {
             const nextRebuys = (s.rebuys || 0) + 1;
             const nextInvested = (s.totalInvested || buyIn) + buyIn;
-            // Append a notice to logs
+            
             setTimeout(() => {
-              appendLog(`[Auto-Rebuy] Seat ${s.id + 1} ran out of chips and was automatically rebought for $${buyIn}!`);
+              appendLog(`[Auto-Rebuy] ${s.name} (Seat ${s.id + 1}) was auto-rebought for $${buyIn}!`);
             }, 100);
 
             return {
@@ -505,8 +529,10 @@
           return { ...s, bet: 0, acted: false };
         });
 
-        setPot(prev => prev + totalStreetBets);
+        const newPotVal = pot + totalStreetBets;
+        setPot(newPotVal);
         setCurrentBet(0);
+        setLastRaiseIncrement(2); // Reset street minimum raise to BB size ($2)
 
         let nextDeck = [...deck];
         let nextBoard = [...board];
@@ -568,10 +594,20 @@
             }
           });
 
-          const totalHandPot = pot + totalStreetBets;
-          const winAmount = Math.floor(totalHandPot / winners.length);
+          // Calculate Casino Rake
+          let finalWinnerPot = newPotVal;
+          let rakeDeducted = 0;
+          let jackpotDrop = 0;
+
+          if (simulateRake && nextBoard.length >= 3) {
+            rakeDeducted = Math.min(5, Math.floor(newPotVal * 0.10)); // 10% up to $5 max
+            jackpotDrop = newPotVal >= 10 ? 1 : 0; // $1 Jackpot drop on pots $10+
+            finalWinnerPot = newPotVal - rakeDeducted - jackpotDrop;
+            appendLog(`[Casino Rake] House raked $${rakeDeducted} + $${jackpotDrop} Jackpot drop. Net Pot: $${finalWinnerPot}`);
+          }
+
+          const winAmount = Math.floor(finalWinnerPot / winners.length);
           
-          // Distribute winnings
           let finalSeats = cleanedSeats.map(s => {
             const isWinner = winners.some(w => w.id === s.id);
             if (isWinner) {
@@ -580,14 +616,13 @@
             return s;
           });
 
-          // Process Auto-Rebuys for broke players at hand end
           finalSeats = handleAutomaticRebuys(finalSeats);
 
           setSeats(finalSeats);
           setStreet('showdown');
           setShowdownData({
             winners: winners.map(w => ({ name: w.name, desc: w.handEval.description, cards: w.handEval.cards })),
-            pot: totalHandPot,
+            pot: finalWinnerPot,
             board: nextBoard,
             players: finalSeats.map(s => {
               const active = !s.isFolded;
@@ -612,8 +647,9 @@
         setStreet(nextStreet);
         setSeats(cleanedSeats);
 
+        // Find first active postflop player (SB acts first postflop)
         let activeIdx = (dealerIndex + 1) % playerCount;
-        while (cleanedSeats[activeIdx].isFolded) {
+        while (cleanedSeats[activeIdx].isFolded || cleanedSeats[activeIdx].stack === 0) {
           activeIdx = (activeIdx + 1) % playerCount;
         }
         setActionIndex(activeIdx);
@@ -628,30 +664,29 @@
         let totalStreetBets = currentSeats.reduce((acc, s) => acc + s.bet, 0);
         let tempPot = pot + totalStreetBets;
 
-        appendLog(`[All-In Action] No further actions possible. Performing immediate board runout...`);
+        appendLog(`[All-In Runout] Active actions closed. Drawing board cards immediately...`);
 
         while (tempStreet !== 'showdown') {
           if (tempStreet === 'preflop') {
-            tempDeck.pop(); // Burn
+            tempDeck.pop(); 
             tempBoard = [tempDeck.pop(), tempDeck.pop(), tempDeck.pop()];
             tempStreet = 'flop';
-            appendLog(`--- FLOP DEALT (Runout): [${tempBoard.map(c => c.value + c.suit).join(' ')}] ---`);
+            appendLog(`--- FLOP RUNOUT: [${tempBoard.map(c => c.value + c.suit).join(' ')}] ---`);
           } else if (tempStreet === 'flop') {
-            tempDeck.pop(); // Burn
+            tempDeck.pop(); 
             tempBoard.push(tempDeck.pop());
             tempStreet = 'turn';
-            appendLog(`--- TURN DEALT (Runout): [${tempBoard[3].value}${tempBoard[3].suit}] ---`);
+            appendLog(`--- TURN RUNOUT: [${tempBoard[3].value}${tempBoard[3].suit}] ---`);
           } else if (tempStreet === 'turn') {
-            tempDeck.pop(); // Burn
+            tempDeck.pop(); 
             tempBoard.push(tempDeck.pop());
             tempStreet = 'river';
-            appendLog(`--- RIVER DEALT (Runout): [${tempBoard[4].value}${tempBoard[4].suit}] ---`);
+            appendLog(`--- RIVER RUNOUT: [${tempBoard[4].value}${tempBoard[4].suit}] ---`);
           } else if (tempStreet === 'river') {
             tempStreet = 'showdown';
           }
         }
 
-        // Evaluate Winners of the Runout
         const activePlayers = tempSeats.filter(s => !s.isFolded);
         const evaluatedResults = activePlayers.map(s => ({
           ...s,
@@ -689,9 +724,20 @@
           }
         });
 
-        const winAmount = Math.floor(tempPot / winners.length);
+        // Apply Casino Rake to All-In Pots
+        let finalWinnerPot = tempPot;
+        let rakeDeducted = 0;
+        let jackpotDrop = 0;
+
+        if (simulateRake) {
+          rakeDeducted = Math.min(5, Math.floor(tempPot * 0.10));
+          jackpotDrop = tempPot >= 10 ? 1 : 0;
+          finalWinnerPot = tempPot - rakeDeducted - jackpotDrop;
+          appendLog(`[Casino Rake] House raked $${rakeDeducted} + $${jackpotDrop} Jackpot. Net Pot: $${finalWinnerPot}`);
+        }
+
+        const winAmount = Math.floor(finalWinnerPot / winners.length);
         
-        // Distribute winnings
         let finalSeats = tempSeats.map(s => {
           const isWinner = winners.some(w => w.id === s.id);
           if (isWinner) {
@@ -700,10 +746,9 @@
           return s;
         });
 
-        // Auto-rebuy if stacks are dry
         finalSeats = handleAutomaticRebuys(finalSeats);
 
-        setPot(tempPot);
+        setPot(finalWinnerPot);
         setDeck(tempDeck);
         setBoard(tempBoard);
         setStreet('showdown');
@@ -711,7 +756,7 @@
         setCurrentBet(0);
         setShowdownData({
           winners: winners.map(w => ({ name: w.name, desc: w.handEval.description, cards: w.handEval.cards })),
-          pot: tempPot,
+          pot: finalWinnerPot,
           board: tempBoard,
           players: tempSeats.map(s => {
             const active = !s.isFolded;
@@ -727,22 +772,21 @@
           })
         });
 
-        appendLog(`Showdown Won by: ${winners.map(w => w.name).join(' and ')} holding: ${bestHand.description}`);
+        appendLog(`All-In Showdown Won by: ${winners.map(w => w.name).join(' and ')} holding: ${bestHand.description}`);
       };
 
       const processAction = (updatedSeats) => {
         const activeNonFolded = updatedSeats.filter(s => !s.isFolded);
         
-        // Single survivor foldout logic check
+        // Single player foldout logic (uncontested pot)
         if (activeNonFolded.length === 1) {
           const winner = activeNonFolded[0];
           const totalWin = pot + updatedSeats.reduce((acc, s) => acc + s.bet, 0);
           winner.stack += totalWin;
           
-          appendLog(`${winner.name} wins the pot of $${totalWin} (others folded)`);
+          appendLog(`${winner.name} wins uncontested pot of $${totalWin}`);
           
           let finalSeats = updatedSeats.map(s => ({ ...s, bet: 0, acted: false }));
-          // Check for auto-rebuys even on folds if someone ended with 0
           finalSeats = handleAutomaticRebuys(finalSeats);
 
           setSeats(finalSeats);
@@ -763,28 +807,32 @@
           return;
         }
 
-        const allActed = activeNonFolded.every(s => s.acted);
-        const uniqueBets = [...new Set(activeNonFolded.map(s => s.bet))];
-
-        // All-In Evaluation: Check if any further betting is possible
+        // Evaluate All-In Check skipping: Check if betting rounds are closed
         const playersWithChips = activeNonFolded.filter(s => s.stack > 0);
         const allActedOrAllIn = activeNonFolded.every(s => s.acted || s.stack === 0);
         const maxBet = Math.max(...activeNonFolded.map(s => s.bet));
         const allBetsEqualOrAllIn = activeNonFolded.every(s => s.bet === maxBet || s.stack === 0);
 
         if (allActedOrAllIn && allBetsEqualOrAllIn && playersWithChips.length <= 1) {
-          // Trigger immediate board runout
           runAllInShowdown(updatedSeats, street, board, deck);
           return;
         }
+
+        const allActed = activeNonFolded.every(s => s.acted || s.stack === 0);
+        const activeBets = activeNonFolded.filter(s => s.stack > 0 || s.bet > 0).map(s => s.bet);
+        const uniqueBets = [...new Set(activeBets)];
 
         if (allActed && uniqueBets.length === 1) {
           advanceStreet(street, updatedSeats);
         } else {
           let nextIdx = (actionIndex + 1) % playerCount;
-          while (updatedSeats[nextIdx].isFolded) {
+          
+          // CRITICAL FIXED EXCLUSION: Skip both folded AND all-in players with no chips remaining to bet
+          while (updatedSeats[nextIdx].isFolded || (updatedSeats[nextIdx].stack === 0 && updatedSeats[nextIdx].bet === maxBet)) {
             nextIdx = (nextIdx + 1) % playerCount;
+            if (nextIdx === actionIndex) break; // Escape inf loop
           }
+          
           setActionIndex(nextIdx);
           setSeats(updatedSeats);
         }
@@ -832,45 +880,56 @@
           addedInvestment = player.stack;
         }
 
-        if (addedInvestment <= 0 && player.stack > 0) {
+        const finalTotalContribution = player.bet + addedInvestment;
+        
+        // Strict NL Raise Validation Check
+        const minimumAllowedRaise = currentBet + lastRaiseIncrement;
+        if (finalTotalContribution < minimumAllowedRaise && finalTotalContribution < (player.bet + player.stack)) {
+          alert(`Strict Casino Rule Violation: Minimum legal raise to is $${minimumAllowedRaise}. (Your raise was $${finalTotalContribution})`);
           return;
         }
 
-        const finalTotalContribution = player.bet + addedInvestment;
         player.stack -= addedInvestment;
         player.bet = finalTotalContribution;
         player.acted = true;
 
-        // Check if this action raises the stakes above the current bet
         if (finalTotalContribution > currentBet) {
+          const newRaiseIncrement = finalTotalContribution - currentBet;
+          setLastRaiseIncrement(newRaiseIncrement); // Track exact raise step size
           setCurrentBet(finalTotalContribution);
+          
           updated.forEach((s, idx) => {
-            if (idx !== actionIndex && !s.isFolded) {
+            if (idx !== actionIndex && !s.isFolded && s.stack > 0) {
               s.acted = false;
             }
           });
           
-          // Track Aggressor: Any player who raises/bets above the $2 BB
+          // Track preflop aggressor
           if (finalTotalContribution > 2) {
             setAggressorId(player.id);
-            appendLog(`[Initiative] ${player.name} is now the aggressor (raised/bet to $${finalTotalContribution})`);
+            appendLog(`[Aggression Tracker] ${player.name} raised to $${finalTotalContribution} and has the initiative`);
           }
         }
 
-        appendLog(`${player.name} ${actionName} to $${finalTotalContribution} (invested $${addedInvestment})`);
+        appendLog(`${player.name} ${actionName} to $${finalTotalContribution}`);
         processAction(updated);
       };
 
       const handleRaise = () => {
-        const targetTotal = currentBet + Number(customRaiseAmount);
-        executeBetOrRaise(targetTotal, "raises");
+        // Raise to exact custom input value
+        executeBetOrRaise(Number(customRaiseAmount), "raises");
       };
 
       const handleSizedBetShortcut = (fraction) => {
         const currentActiveTotalPot = pot + seats.reduce((sum, s) => sum + s.bet, 0);
         const betIncrement = Math.max(2, Math.round(fraction * currentActiveTotalPot));
         const targetTotal = currentBet + betIncrement;
-        executeBetOrRaise(targetTotal, `bets/raises (${Math.round(fraction * 100)}% Pot)`);
+        
+        // Validate minimum raise limit
+        const minLegalTotal = currentBet + lastRaiseIncrement;
+        const finalTargetTotal = Math.max(minLegalTotal, targetTotal);
+
+        executeBetOrRaise(finalTargetTotal, `bets/raises (${Math.round(fraction * 100)}% Pot)`);
       };
 
       const handleAllIn = () => {
@@ -949,20 +1008,31 @@
       const isPostFlop = street !== 'preflop' && street !== 'showdown';
 
       return (
-        <div className="flex flex-col h-full bg-slate-950">
+        <div className="flex flex-col h-full bg-[#05070c]">
           
-          {/* ================= BAR 1: GLOBAL CONTROLS ================= */}
+          {/* ================= BAR 1: GLOBAL SETUP CONTROLS ================= */}
           <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-xs z-30">
             <div className="flex items-center gap-4 flex-wrap">
-              <span className="font-bold tracking-wider text-teal-400 uppercase flex items-center gap-1.5 font-sans">
-                <i data-lucide="settings" className="w-4 h-4"></i> Setup Panel
+              <span className="font-bold tracking-wider text-teal-400 uppercase flex items-center gap-1.5">
+                <i data-lucide="settings" className="w-4 h-4"></i> Casino Training Setup
               </span>
               
               <div className="h-4 w-[1px] bg-slate-800"></div>
 
-              {/* Player Count */}
+              {/* Rake toggle simulator */}
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 font-medium">Casino Rake (10% up to $5):</span>
+                <button 
+                  onClick={() => setSimulateRake(!simulateRake)}
+                  className={`w-10 h-5 rounded-full p-0.5 transition-all relative ${simulateRake ? 'bg-emerald-600' : 'bg-slate-700'}`}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white transition-all shadow-md ${simulateRake ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                </button>
+              </div>
+
+              {/* Seat Count Controller */}
               <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded border border-slate-800">
-                <span className="text-slate-400">Seats:</span>
+                <span className="text-slate-400 font-medium">Table Size:</span>
                 <button 
                   onClick={() => setPlayerCount(prev => Math.max(2, prev - 1))} 
                   className="bg-slate-800 hover:bg-slate-700 px-2 py-0.5 rounded text-white font-bold transition-all"
@@ -978,9 +1048,9 @@
                 </button>
               </div>
 
-              {/* Buy-In Configuration */}
+              {/* Stack Setup */}
               <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded border border-slate-800">
-                <span className="text-slate-400">Buy-In:</span>
+                <span className="text-slate-400 font-medium">Buy-In Amount:</span>
                 <span className="text-emerald-500 font-bold">$</span>
                 <input 
                   type="number" 
@@ -991,32 +1061,39 @@
               </div>
             </div>
 
-            {/* Quick Reset Tools */}
+            {/* Quick Action Overlays */}
             <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setCheatSheetOpen(!cheatSheetOpen)}
+                className={`px-3 py-1.5 rounded font-medium border flex items-center gap-1.5 transition-all ${cheatSheetOpen ? 'bg-amber-600 border-amber-500 text-white shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}
+              >
+                <i data-lucide="book-open" className="w-3.5 h-3.5"></i> RFI Range Chart
+              </button>
+
               <button 
                 onClick={() => setRangeGridOpen(!rangeGridOpen)}
                 className={`px-3 py-1.5 rounded font-medium border flex items-center gap-1.5 transition-all ${rangeGridOpen ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}`}
               >
-                <i data-lucide="grid" className="w-3.5 h-3.5"></i> Range Matrix
+                <i data-lucide="grid" className="w-3.5 h-3.5"></i> Range Grid
               </button>
               
               <button 
                 onClick={handleResetGame}
                 className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded font-medium transition-all flex items-center gap-1.5"
               >
-                <i data-lucide="rotate-ccw" className="w-3.5 h-3.5"></i> Reset Board
+                <i data-lucide="rotate-ccw" className="w-3.5 h-3.5"></i> Reset Table
               </button>
               
               <button 
                 onClick={startNewHand}
-                className="bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded font-bold transition-all shadow-md flex items-center gap-1.5"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded font-bold transition-all shadow-md flex items-center gap-1.5"
               >
                 <i data-lucide="play" className="w-3.5 h-3.5"></i> Next Hand
               </button>
             </div>
           </div>
 
-          {/* ================= BAR 2: LIVE MATH & METRICS ================= */}
+          {/* ================= BAR 2: LIVE METRICS & STRATEGY PANEL ================= */}
           <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex flex-wrap items-center gap-6 text-xs text-slate-300 z-20">
             <span className="font-bold tracking-wider text-teal-400 uppercase flex items-center gap-1.5">
               <i data-lucide="activity" className="w-4 h-4"></i> Live Stats
@@ -1024,35 +1101,42 @@
             
             <div className="h-4 w-[1px] bg-slate-800"></div>
 
-            {/* Pre-flop Playability Ranking */}
+            {/* In-Game Strategy Randomizer (RNG) */}
+            <div className="flex items-center gap-2 bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800">
+              <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Strategy RNG:</span>
+              <button 
+                onClick={rollRng}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold px-2 py-0.5 rounded text-[10px] shadow transition-all flex items-center gap-1"
+              >
+                <i data-lucide="dices" className="w-3 h-3"></i> Roll
+              </button>
+              <span className="font-black text-amber-400 mono-font text-xs w-6 text-center">
+                {rngValue !== null ? rngValue : '--'}
+              </span>
+            </div>
+
+            {/* Pre-flop Playability Metrics (Grows post-flop inactive) */}
             {activePlayer && (
-              <div className={`bg-slate-950 border border-slate-800/80 px-2.5 py-1 rounded-md flex flex-col justify-center min-w-[150px] shadow-lg transition-opacity duration-300 ${isPostFlop ? 'opacity-40' : 'opacity-100'}`}>
+              <div className={`bg-slate-950 border border-slate-800/80 px-2.5 py-1 rounded-md flex flex-col justify-center min-w-[155px] shadow-lg transition-all duration-300 ${isPostFlop ? 'opacity-30' : 'opacity-100'}`}>
                 <div className="flex items-center gap-1.5">
                   <span className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Pre-Flop:</span>
                   <span className={`font-extrabold uppercase tracking-wide text-[10px] ${isPostFlop ? 'text-slate-500' : preflopRanking.color}`}>
                     {isPostFlop ? "Post-Flop (N/A)" : preflopRanking.label}
                   </span>
                 </div>
-                {/* Strength Meter Bar */}
-                <div className="w-full h-1.5 bg-gradient-to-r from-red-600 via-yellow-500 to-emerald-500 rounded-full mt-1 relative">
+                {/* Visual smooth strength gradient bar */}
+                <div className="w-full h-1 bg-gradient-to-r from-red-600 via-yellow-500 to-emerald-500 rounded-full mt-1 relative">
                   {!isPostFlop && (
                     <div 
                       style={{ left: `calc(${preflopRanking.strength}% - 4px)` }}
-                      className="absolute top-[-2px] w-2 h-2.5 rounded-full bg-white border border-slate-950 shadow transition-all duration-300"
+                      className="absolute top-[-3px] w-2.5 h-2.5 rounded-full bg-white border border-slate-950 shadow transition-all duration-300"
                     />
                   )}
                 </div>
               </div>
             )}
 
-            {/* Active turn indicator banner */}
-            {activePlayer && (
-              <span className="bg-indigo-950/80 border border-indigo-800/60 px-2 py-1 rounded text-[11px] font-bold text-indigo-300">
-                Seat {actionIndex + 1} Turn
-              </span>
-            )}
-
-            {/* Metrics list */}
+            {/* Core Action Tooltips Indicators */}
             <div className="flex items-center gap-5 flex-wrap">
               {/* Pot Odds */}
               <div 
@@ -1085,83 +1169,91 @@
               </div>
 
               {/* Rule of 2 & 4 Equity */}
-              <div 
-                className="relative cursor-help border-b border-dotted border-slate-500 pb-0.5"
-                onMouseEnter={() => setActiveTooltip('ruleEquity')}
-                onMouseLeave={() => setActiveTooltip(null)}
-              >
-                Rule of 2 & 4 Equity: <span className="text-emerald-400 font-bold tracking-wide mono-font">{ruleEquityValue}%</span>
-                {activeTooltip === 'ruleEquity' && (
-                  <div className="absolute left-0 top-6 w-64 p-3 bg-slate-950 border border-slate-800 rounded-lg shadow-2xl text-[11px] text-slate-300 leading-relaxed font-sans z-50">
-                    <p className="font-bold text-emerald-400 mb-1">{METRICS_INFO.ruleEquity.title}</p>
-                    {METRICS_INFO.ruleEquity.def}
-                  </div>
-                )}
-              </div>
-
-              {/* Outs Count */}
-              <div 
-                className="relative cursor-help border-b border-dotted border-slate-500 pb-0.5 flex items-center gap-1"
-                onMouseEnter={() => setActiveTooltip('outs')}
-                onMouseLeave={() => setActiveTooltip(null)}
-              >
-                <span>Outs:</span> 
-                <span className="text-sky-300 font-black text-sm md:text-base bg-sky-950 border border-sky-800 px-2 py-0.5 rounded mono-font tracking-wide animate-pulse">
-                  {outsData.count}
-                </span>
-                {activeTooltip === 'outs' && (
-                  <div className="absolute left-0 top-6 w-64 p-3 bg-slate-950 border border-slate-800 rounded-lg shadow-2xl text-[11px] text-slate-300 leading-relaxed font-sans z-50">
-                    <p className="font-bold text-sky-400 mb-1">{METRICS_INFO.outs.title}</p>
-                    {METRICS_INFO.outs.def}
-                  </div>
-                )}
-              </div>
-
-              {/* SPR */}
-              <div 
-                className="relative cursor-help border-b border-dotted border-slate-500 pb-0.5"
-                onMouseEnter={() => setActiveTooltip('spr')}
-                onMouseLeave={() => setActiveTooltip(null)}
-              >
-                SPR: <span className="text-fuchsia-400 font-bold tracking-wide mono-font">{sprValue}</span>
-                {activeTooltip === 'spr' && (
-                  <div className="absolute left-0 top-6 w-64 p-3 bg-slate-950 border border-slate-800 rounded-lg shadow-2xl text-[11px] text-slate-300 leading-relaxed font-sans z-50">
-                    <p className="font-bold text-fuchsia-400 mb-1">{METRICS_INFO.spr.title}</p>
-                    {METRICS_INFO.spr.def}
-                  </div>
-                )}
-              </div>
+            <div 
+              className="relative cursor-help border-b border-dotted border-slate-500 pb-0.5"
+              onMouseEnter={() => setActiveTooltip('ruleEquity')}
+              onMouseLeave={() => setActiveTooltip(null)}
+            >
+              Rule of 2 & 4: <span className="text-emerald-400 font-bold tracking-wide mono-font">{ruleEquityValue}%</span>
+              {activeTooltip === 'ruleEquity' && (
+                <div className="absolute left-0 top-6 w-64 p-3 bg-slate-950 border border-slate-800 rounded-lg shadow-2xl text-[11px] text-slate-300 leading-relaxed font-sans z-50">
+                  <p className="font-bold text-emerald-400 mb-1">{METRICS_INFO.ruleEquity.title}</p>
+                  {METRICS_INFO.ruleEquity.def}
+                </div>
+              )}
             </div>
 
-            {/* Visual Outs cards indicator - High clarity mini-cards */}
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-slate-400 text-xs font-bold font-sans">Outs Cards:</span>
-              <div className="flex gap-1.5 overflow-x-auto max-w-[280px] py-1">
-                {outsData.cards.length > 0 ? (
-                  outsData.cards.map((c, i) => (
-                    <span 
-                      key={i} 
-                      className={`px-2 py-1 bg-white rounded-md font-extrabold mono-font text-xs md:text-sm shadow-md border border-slate-300 transition-all hover:scale-110 ${c.color}`}
-                    >
-                      {c.value}{c.suit}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-slate-600 italic text-[11px]">No draws detected</span>
-                )}
-              </div>
+            {/* Outs Count */}
+            <div 
+              className="relative cursor-help border-b border-dotted border-slate-500 pb-0.5 flex items-center gap-1"
+              onMouseEnter={() => setActiveTooltip('outs')}
+              onMouseLeave={() => setActiveTooltip(null)}
+            >
+              <span>Outs:</span> 
+              <span className="text-sky-300 font-black text-xs md:text-sm bg-sky-950 border border-sky-800 px-2 py-0.5 rounded mono-font tracking-wide animate-pulse">
+                {outsData.count}
+              </span>
+              {activeTooltip === 'outs' && (
+                <div className="absolute left-0 top-6 w-64 p-3 bg-slate-950 border border-slate-800 rounded-lg shadow-2xl text-[11px] text-slate-300 leading-relaxed font-sans z-50">
+                  <p className="font-bold text-sky-400 mb-1">{METRICS_INFO.outs.title}</p>
+                  {METRICS_INFO.outs.def}
+                </div>
+              )}
+            </div>
+
+            {/* SPR */}
+            <div 
+              className="relative cursor-help border-b border-dotted border-slate-500 pb-0.5"
+              onMouseEnter={() => setActiveTooltip('spr')}
+              onMouseLeave={() => setActiveTooltip(null)}
+            >
+              SPR: <span className="text-fuchsia-400 font-bold tracking-wide mono-font">{sprValue}</span>
+              {activeTooltip === 'spr' && (
+                <div className="absolute left-0 top-6 w-64 p-3 bg-slate-950 border border-slate-800 rounded-lg shadow-2xl text-[11px] text-slate-300 leading-relaxed font-sans z-50">
+                  <p className="font-bold text-fuchsia-400 mb-1">{METRICS_INFO.spr.title}</p>
+                  {METRICS_INFO.spr.def}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* ================= SPLIT SCREEN VIEW: TABLE WORKSPACE vs SIDEBAR ================= */}
-          <div className="flex-1 flex overflow-hidden">
+          {}
+          {/* High Clarity Mini-Cards display for Outs (Stacked & Overlapped Fanning) */}
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-slate-400 text-xs font-bold font-sans mr-1">Visual Outs:</span>
+            <div className="flex items-center overflow-x-auto max-w-[320px] py-2 pl-2">
+              {outsData.cards.length > 0 ? (
+                <div className="flex items-center">
+                  {outsData.cards.map((c, i) => (
+                    <div 
+                      key={i} 
+                      style={{ marginLeft: i === 0 ? '0px' : '-1.15rem', zIndex: i }}
+                      className={`relative w-9 h-14 bg-white rounded-md border border-slate-300 shadow-md flex flex-col justify-start p-1 text-slate-900 font-mono transition-all hover:-translate-y-2 hover:scale-110 hover:!z-[99] cursor-pointer ${c.color}`}
+                    >
+                      {/* Stacked Index positioned strictly on the left visible half */}
+                      <div className="flex flex-col items-start leading-none select-none">
+                        <span className="text-[11px] font-black leading-none">{c.value}</span>
+                        <span className="text-sm font-black leading-none mt-0.5">{c.suit}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-slate-600 italic text-[11px]">No active draws detected</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ================= MAIN SPLIT CONTAINER: TABLE WORKSPACE vs SIDEBAR ================= */}
+        <div className="flex-1 flex overflow-hidden">
             
-            {/* Left Portion: Scalable Table & Action Console */}
-            <div className="flex-1 flex flex-col relative overflow-hidden bg-slate-950 items-center justify-between p-4">
+            {/* Left Workspace: Scalable Felt Poker Table */}
+            <div className="flex-1 flex flex-col relative overflow-hidden bg-[#070b14] items-center justify-between p-4">
               
-              {/* Table Scaling HUD on top-right */}
+              {/* Table Scale Adjustment Panel */}
               <div className="absolute right-4 top-4 bg-slate-900/80 backdrop-blur border border-slate-800 px-3 py-2 rounded-lg flex flex-col items-center gap-1.5 z-20">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Table Scale</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Felt Size Scale</span>
                 <div className="flex items-center gap-2">
                   <i data-lucide="minimize" className="w-3.5 h-3.5 text-slate-500"></i>
                   <input 
@@ -1171,41 +1263,41 @@
                     step="0.05"
                     value={tableScale}
                     onChange={(e) => setTableScale(parseFloat(e.target.value))}
-                    className="w-20 accent-teal-500 cursor-pointer"
+                    className="w-20 accent-emerald-500 cursor-pointer"
                   />
                   <i data-lucide="maximize" className="w-3.5 h-3.5 text-slate-500"></i>
                 </div>
               </div>
 
-              {/* Scaled Table Container Wrapper - set transformOrigin to top center */}
+              {/* Scalable Container - Formatted for Top-Center Orientation */}
               <div 
                 style={{ transform: `scale(${tableScale})`, transformOrigin: 'top center' }}
                 className="transition-transform duration-150 ease-out relative w-[780px] h-[340px] flex items-center justify-center mt-2"
               >
                 
-                {/* Green Felt Table Body */}
+                {/* Emerald green table felt */}
                 <div className="w-full h-full table-felt border-[14px] border-amber-950 rounded-[170px] shadow-[inset_0_12px_36px_rgba(0,0,0,0.6),0_24px_48px_rgba(0,0,0,0.5)] flex flex-col items-center justify-center relative">
                   
-                  {/* Central Wood Panel Design Accents */}
-                  <div className="absolute inset-4 border border-teal-600/20 rounded-[150px] pointer-events-none"></div>
+                  {/* Outer rail border alignment */}
+                  <div className="absolute inset-4 border border-emerald-500/10 rounded-[150px] pointer-events-none"></div>
 
-                  {/* Pot Chip Pile */}
-                  <div className="absolute top-[28%] text-center bg-slate-950/80 backdrop-blur px-4 py-1.5 rounded-full border border-teal-800/40 shadow-xl flex items-center gap-2">
+                  {/* Central Pot Display */}
+                  <div className="absolute top-[28%] text-center bg-slate-950/90 backdrop-blur px-4 py-1.5 rounded-full border border-emerald-800/40 shadow-xl flex items-center gap-2">
                     <div className="flex -space-x-1">
                       <span className="w-3.5 h-3.5 rounded-full bg-red-600 border border-white flex items-center justify-center text-[7px] font-bold text-white shadow">P</span>
                       <span className="w-3.5 h-3.5 rounded-full bg-blue-600 border border-white flex items-center justify-center text-[7px] font-bold text-white shadow">P</span>
                     </div>
                     <div>
-                      <span className="text-[9px] text-teal-400 font-bold uppercase tracking-wider block">Total Pot</span>
-                      <span className="mono-font text-lg font-black text-amber-300 leading-none">${pot}</span>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Total Pot</span>
+                      <span className="mono-font text-lg font-black text-yellow-400 leading-none">${pot}</span>
                     </div>
                   </div>
 
-                  {/* Community Board Display - Clean layout, dynamic scale in showdown */}
+                  {/* Community cards */}
                   <div className="absolute bottom-1/3 flex gap-2 items-center">
                     {board.length === 0 ? (
-                      <div className="px-6 py-2 border border-dashed border-teal-500/20 rounded-lg text-teal-500/30 font-bold tracking-widest text-xs uppercase">
-                        Practice Arena
+                      <div className="px-6 py-2 border border-dashed border-emerald-500/20 rounded-lg text-emerald-500/30 font-bold tracking-widest text-xs uppercase">
+                        Solitaire Arena
                       </div>
                     ) : (
                       board.map((card, idx) => {
@@ -1214,7 +1306,7 @@
                         let cardClasses = "border border-slate-300 hover:-translate-y-1";
                         if (showdownData) {
                           if (isWinningCard) {
-                            cardClasses = "scale-115 border-2 border-slate-400 shadow-2xl z-10";
+                            cardClasses = "scale-115 border-2 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.5)] z-10";
                           } else {
                             cardClasses = "opacity-60 scale-95 border border-slate-200";
                           }
@@ -1233,17 +1325,17 @@
                     )}
                   </div>
 
-                  {/* Player Seats - CLOCK-FACE ARRANGEMENT:
-                      Distributed evenly clockwise from 1 o'clock (Seat 1) to 11 o'clock (Seat 9).
-                      Formula distributes indices over a 300-degree arc (-60 deg to -120 deg). */}
+                  {/* Clock Face Seats Arrangement:
+                      Seat 1 starts exactly at 1 o'clock (right-to-top), Seat 9 finishes at 11 o'clock (left-to-top) */}
                   {seats.map((seat, index) => {
                     const isActive = index === actionIndex;
                     const isAggressor = seat.id === aggressorId;
                     const isWinner = showdownData && showdownData.winners.some(w => w.name === seat.name);
                     
-                    // Clock face mapping
-                    const totalSpan = 300 * Math.PI / 180;
-                    const angle = -Math.PI / 3 + (index * totalSpan / (playerCount - 1));
+                    // Clock angle mapping starting at 1 o'clock
+                    const angleOffset = -Math.PI / 3; 
+                    const totalSweep = (300 * Math.PI) / 180; 
+                    const angle = angleOffset + (index * totalSweep) / (playerCount - 1);
                     
                     const rX = 350;
                     const rY = 145;
@@ -1252,16 +1344,15 @@
 
                     const revealHoleCards = isActive || (street === 'showdown' && !seat.isFolded);
 
-                    // Border, highlight and glowing shadow effects for aggressor and winner
+                    // Dynamic highlighting border configs
                     let borderClass = 'border-slate-800';
                     if (isWinner) {
                       borderClass = 'border-amber-400 ring-4 ring-amber-500/40 bg-slate-900 scale-105 shadow-[0_0_15px_rgba(245,158,11,0.5)]';
-                    } else if (isActive) {
-                      borderClass = isAggressor 
-                        ? 'border-red-600 ring-4 ring-red-500/30 bg-slate-900 scale-105 shadow-[0_0_15px_rgba(220,38,38,0.6)]'
-                        : 'border-teal-400 ring-4 ring-teal-500/20 bg-slate-900 scale-105';
                     } else if (isAggressor) {
-                      borderClass = 'border-red-600 ring-4 ring-red-500/20 bg-slate-950/95 shadow-[0_0_15px_rgba(220,38,38,0.5)]';
+                      // Persistent Crimson outline for standard aggressor positions
+                      borderClass = 'border-red-600 ring-4 ring-red-500/20 bg-slate-950 shadow-[0_0_15px_rgba(220,38,38,0.5)]';
+                    } else if (isActive) {
+                      borderClass = 'border-teal-400 ring-4 ring-teal-500/20 bg-slate-900 scale-105';
                     }
 
                     return (
@@ -1269,9 +1360,9 @@
                         key={seat.id}
                         style={{ top: `${topPos}px`, left: `${leftPos}px` }}
                         className="absolute w-28 flex flex-col items-center z-10 animate-fade-in cursor-help"
-                        title={`Seat ${seat.id + 1}\nStack: $${seat.stack}\nTotal Invested: $${seat.totalInvested || buyIn}\nRebuys: ${seat.rebuys || 0}`}
+                        title={`Position: ${seat.name}\nSeat ${seat.id + 1}\nStack: $${seat.stack}\nTotal Invested: $${seat.totalInvested || buyIn}\nRebuys: ${seat.rebuys || 0}`}
                       >
-                        {/* Player Pod Display */}
+                        {/* Player seat pod box */}
                         <div 
                           className={`w-full bg-slate-950/90 backdrop-blur rounded-lg p-2 border shadow-xl transition-all ${borderClass} ${seat.isFolded ? 'opacity-30 grayscale' : (showdownData && !isWinner) ? 'opacity-60 grayscale-[15%]' : ''}`}
                         >
@@ -1297,7 +1388,7 @@
                             </div>
                           </div>
 
-                          {/* Hole cards representation - Scaled up Rank and Suit typography */}
+                          {/* Hole Cards */}
                           <div className="flex gap-1.5 mt-1.5 justify-center relative">
                             {seat.cards.map((c, cIdx) => {
                               const isHoleWinner = isWinner && showdownData.winners.some(w => w.cards && w.cards.some(wc => wc.value === c.value && wc.suit === c.suit));
@@ -1323,12 +1414,14 @@
                     );
                   })}
 
-                  {/* Felt-ward Positioned Bets - Placed inner circle closer to pot */}
+                  {/* Active Chips Stack Bets: Located dynamically on inside felt ring */}
                   {seats.map((seat, index) => {
                     if (seat.bet <= 0 || seat.isFolded) return null;
                     
-                    const totalSpan = 300 * Math.PI / 180;
-                    const angle = -Math.PI / 3 + (index * totalSpan / (playerCount - 1));
+                    const angleOffset = -Math.PI / 3;
+                    const totalSweep = (300 * Math.PI) / 180;
+                    const angle = angleOffset + (index * totalSweep) / (playerCount - 1);
+                    
                     const betRX = 210; 
                     const betRY = 78;
                     const betLeftPos = 390 + betRX * Math.cos(angle) - 24;
@@ -1346,13 +1439,15 @@
                     );
                   })}
 
-                  {/* Dealer, SB, BB circular buttons - positioned elegantly on the felt outside player cards */}
+                  {/* Dealer Buttons & SB / BB tags positioned deep onto green felt outside hole cards */}
                   {seats.map((seat, index) => {
                     if (!seat.role || seat.isFolded) return null;
                     
-                    const totalSpan = 300 * Math.PI / 180;
-                    const angle = -Math.PI / 3 + (index * totalSpan / (playerCount - 1));
+                    const angleOffset = -Math.PI / 3;
+                    const totalSweep = (300 * Math.PI) / 180;
+                    const angle = angleOffset + (index * totalSweep) / (playerCount - 1);
                     const roleAngle = angle - 0.25; 
+                    
                     const roleRX = 225; 
                     const roleRY = 90;  
                     const roleLeft = 390 + roleRX * Math.cos(roleAngle) - 12;
@@ -1373,11 +1468,11 @@
                     );
                   })}
 
-                  {/* Embedded Showdown Table HUD inside central felt (No Pop-ups, staying on table) */}
+                  {/* Floating Showdown Banner overlay on green felt */}
                   {showdownData && (
                     <div className="absolute bottom-[6%] bg-slate-950/95 border border-amber-500/40 rounded-xl px-5 py-2.5 flex flex-col items-center gap-2 shadow-2xl z-40 max-w-[340px] text-center transform scale-[1.15] animate-fade-in">
                       <div className="flex items-center justify-center gap-1.5 text-amber-400 font-extrabold text-xs uppercase tracking-wider">
-                        <i data-lucide="trophy" className="w-3.5 h-3.5 animate-bounce"></i> Showdown Winners
+                        <i data-lucide="trophy" className="w-3.5 h-3.5 animate-bounce"></i> Showdown Winner
                       </div>
                       <div className="text-[10px] text-slate-300 leading-relaxed">
                         {showdownData.winners.map(w => w.name).join(' & ')} wins <span className="text-emerald-400 font-bold">${showdownData.pot}</span> with <span className="text-amber-300 font-bold">{showdownData.winners[0]?.desc}</span>
@@ -1394,11 +1489,10 @@
                 </div>
               </div>
 
-              {/* ================= ACTIONS HUD CONSOLE & BET SHORTCUTS ================= */}
-              {/* Organized as a single sleek row, completely eliminating vertical stacking and saving table space */}
+              {/* ================= BOTTOM CONSOLE: ACTION HUD ================= */}
               <div className="w-full max-w-[1050px] bg-slate-900/90 backdrop-blur border border-slate-800 p-3 rounded-2xl shadow-2xl z-20 flex flex-row items-center justify-between gap-6">
                 
-                {/* Left Side: Hand Actions Suite & Stack Indicator */}
+                {/* Left Controls: Core Decisions Suite */}
                 <div className="flex items-center gap-3">
                   {activePlayer && (
                     <div className="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs">
@@ -1433,13 +1527,12 @@
                   </div>
                 </div>
 
-                {/* Vertical Divider */}
-                <div className="h-8 w-[1px] bg-slate-800/80 hidden md:block"></div>
+                <div className="h-8 w-[1px] bg-slate-800 hidden md:block"></div>
 
-                {/* Right Side: Pot Sizing Shortcuts & Custom Raises (Includes FULL POT bet option) */}
+                {/* Right Controls: Pot Sizings & Custom Raises with Validation Limits */}
                 <div className="flex items-center gap-4 flex-1 justify-end">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase mr-1">Sizings:</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase mr-1 font-sans">Presets:</span>
                     <button 
                       onClick={() => handleSizedBetShortcut(0.25)}
                       disabled={!activePlayer || activePlayer.stack === 0}
@@ -1464,39 +1557,41 @@
                     <button 
                       onClick={() => handleSizedBetShortcut(1.00)}
                       disabled={!activePlayer || activePlayer.stack === 0}
-                      className="bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 disabled:opacity-30 px-3 py-1.5 rounded-md font-bold text-[10px] uppercase tracking-wider text-teal-400 transition-all font-black"
+                      className="bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 disabled:opacity-30 px-3 py-1.5 rounded-md font-bold text-[10px] uppercase tracking-wider text-teal-400 font-black transition-all"
                     >
                       Pot
                     </button>
                     <button 
                       onClick={handleAllIn}
                       disabled={!activePlayer || activePlayer.stack === 0}
-                      className="bg-gradient-to-r from-red-950 to-amber-900 hover:from-red-900 hover:to-amber-800 border border-red-800/50 hover:border-amber-600/60 disabled:opacity-30 px-4 py-1.5 rounded-md font-extrabold text-[10px] uppercase tracking-wider text-amber-300 shadow-md transition-all animate-pulse"
+                      className="bg-gradient-to-r from-red-950 to-rose-950 hover:from-red-900 hover:to-rose-900 border border-red-800/50 disabled:opacity-30 px-4 py-1.5 rounded-md font-extrabold text-[10px] uppercase tracking-wider text-amber-400 shadow-md transition-all animate-pulse"
                     >
                       All-In
                     </button>
                   </div>
 
-                  {/* Custom Sizing raises input box */}
-                  <div className="flex items-center gap-2 pl-4 border-l border-slate-800/80">
+                  {/* Legal raise amount display (strict NL rules calculator) */}
+                  <div className="flex items-center gap-2 pl-4 border-l border-slate-800">
                     <div className="flex flex-col items-end">
-                      <input 
-                        type="number" 
-                        value={customRaiseAmount}
-                        min="1"
-                        max={activePlayer ? activePlayer.stack : 1000}
-                        onChange={(e) => setCustomRaiseAmount(Math.max(1, Math.min(activePlayer ? activePlayer.stack : 1000, Number(e.target.value))))}
-                        className="bg-slate-950 border border-slate-800 rounded px-2 py-1 w-16 text-center mono-font font-bold text-yellow-400 focus:outline-none"
-                      />
-                      <span className="text-[8px] text-slate-600 mt-0.5 font-sans">
-                        Max: ${activePlayer ? activePlayer.stack : 'N/A'}
+                      <div className="relative">
+                        <input 
+                          type="number" 
+                          value={customRaiseAmount}
+                          min={currentBet + lastRaiseIncrement}
+                          max={activePlayer ? activePlayer.stack : 1000}
+                          onChange={(e) => setCustomRaiseAmount(Math.max(1, Number(e.target.value)))}
+                          className="bg-slate-950 border border-slate-800 rounded px-2 py-1 w-16 text-center mono-font font-bold text-yellow-400 focus:outline-none"
+                        />
+                      </div>
+                      <span className="text-[8px] text-slate-500 mt-0.5 font-sans leading-none">
+                        Min Raise: ${currentBet + lastRaiseIncrement}
                       </span>
                     </div>
                     
                     <button 
                       onClick={handleRaise}
                       disabled={!activePlayer || activePlayer.stack === 0 || customRaiseAmount > activePlayer.stack}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 rounded-lg font-bold text-xs uppercase tracking-wider text-white shadow-lg transition-all"
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 rounded-lg font-bold text-xs uppercase tracking-wider text-white shadow-lg transition-all"
                     >
                       Raise
                     </button>
@@ -1506,17 +1601,17 @@
               </div>
             </div>
 
-            {/* Right Portion: Unified Sidebar Hand History Feed (Repositioned to the right of the table) */}
-            <div className="w-80 md:w-96 border-l border-slate-800 bg-slate-950 flex flex-col h-full p-4 relative z-20">
+            {/* Right Sidebar: Unified Casino Hand History Stream */}
+            <div className="w-80 md:w-96 border-l border-slate-800 bg-[#060912] flex flex-col h-full p-4 relative z-20">
               <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3 flex items-center gap-1.5">
                 <i data-lucide="scroll-text" className="w-4 h-4 text-slate-400"></i> Hand History Stream
               </span>
               
-              <div className="flex-1 bg-slate-900 rounded-xl p-4 mono-font text-[11px] text-slate-400 overflow-y-auto space-y-1.5 shadow-inner border border-slate-800/60 leading-relaxed">
+              <div className="flex-1 bg-slate-950 rounded-xl p-4 mono-font text-[11px] text-slate-400 overflow-y-auto space-y-1.5 shadow-inner border border-slate-900 leading-relaxed">
                 {logs.map((log, index) => (
                   <div 
                     key={index} 
-                    className={log.startsWith('---') ? 'text-teal-400 font-bold border-b border-slate-800/40 pb-1.5 mt-2' : 'border-b border-slate-800/20 pb-1'}
+                    className={log.startsWith('---') ? 'text-teal-400 font-bold border-b border-slate-800/40 pb-1.5 mt-2' : 'border-b border-slate-800/10 pb-1'}
                   >
                     {log}
                   </div>
@@ -1527,7 +1622,7 @@
 
           </div>
 
-          {/* ================= EXPANSION MODULE: RANGE MATRIX GRID OVERLAY ================= */}
+          {/* ================= OPTIONAL RANGE MATRIX GRID OVERLAY ================= */}
           {rangeGridOpen && (
             <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
               <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-4 shadow-2xl flex flex-col max-h-[90vh]">
@@ -1544,10 +1639,10 @@
                 </div>
 
                 <div className="text-slate-400 text-[11px] my-2 leading-relaxed">
-                  Assign hand ranges to this practice seat. Highlight grid coordinates to study position ranges (e.g. UTG Open RFI vs BB Defense range).
+                  Design positional hand opening categories (e.g., UTG RFI vs CO Flat ranges). Touch grid squares to toggle highlighted state.
                 </div>
 
-                {/* 13x13 Grid */}
+                {/* 13x13 Range Matrix Grid */}
                 <div 
                   style={{ display: 'grid', gridTemplateColumns: 'repeat(13, minmax(0, 1fr))' }}
                   className="gap-1 overflow-y-auto my-3 p-1 bg-slate-950 rounded-lg border border-slate-800"
@@ -1586,13 +1681,64 @@
                     onClick={() => setRangeMatrixSelection({})}
                     className="text-slate-400 hover:text-white underline"
                   >
-                    Clear All Selection
+                    Clear Matrix
                   </button>
                   <button 
                     onClick={() => setRangeGridOpen(false)}
-                    className="bg-teal-600 text-white font-bold px-4 py-1.5 rounded"
+                    className="bg-emerald-600 text-white font-bold px-4 py-1.5 rounded hover:bg-emerald-500 shadow-md transition-all"
                   >
-                    Apply Range Setup
+                    Apply Range
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= OPTIONAL LIVE RFI CHEAT SHEET ================= */}
+          {cheatSheetOpen && (
+            <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+              <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-xl w-full p-5 shadow-2xl flex flex-col max-h-[90vh]">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+                  <h3 className="font-bold text-amber-400 text-sm flex items-center gap-1.5">
+                    <i data-lucide="book-open" className="w-4 h-4"></i> $1/$2 Live Cash Opening Guide (RFI)
+                  </h3>
+                  <button 
+                    onClick={() => setCheatSheetOpen(false)}
+                    className="text-slate-400 hover:text-white"
+                  >
+                    <i data-lucide="x" className="w-5 h-5"></i>
+                  </button>
+                </div>
+
+                <div className="overflow-y-auto space-y-4 my-4 pr-1 text-slate-300 text-xs leading-relaxed">
+                  <div>
+                    <h4 className="font-extrabold text-teal-400 uppercase tracking-wide mb-1">UTG / UTG+1 (Early Position RFI: 15%)</h4>
+                    <p>Only open premium ranges. Pocket Pairs 77+, Suited Aces A2s-A5s (wheel candidates), A10s+, Suited Broadways KJs+, KQo, AQo+, and premium AK combinations. Fold all small offsuit cards immediately.</p>
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-teal-400 uppercase tracking-wide mb-1">MP / LJ / HJ (Middle Position RFI: 20%)</h4>
+                    <p>Widen opening selections to include pocket pairs 55+, suited connectors 87s+, suited gappers like J9s+, offsuit broadways QJo, KJo+, and all suited Kings K9s+.</p>
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-teal-400 uppercase tracking-wide mb-1">CO (Cutoff RFI: 26%)</h4>
+                    <p>The late position launching pad. Open all pocket pairs, suited connectors down to 54s, any suited broadway cards, suited wheel Kings K4s+, suited Queens Q8s+, and offsuit combinations A10o+.</p>
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-teal-400 uppercase tracking-wide mb-1">BTN (Button RFI: 40%+)</h4>
+                    <p>Wider range. Open virtually any suited ace, offsuit aces A5o+, any two suited cards Ten or higher (e.g. Q10s, J9s), offsuit connectors 98o+, and KQ, KJ, QJ offsuit.</p>
+                  </div>
+                  <div className="bg-amber-950/20 border border-amber-500/20 rounded-lg p-3">
+                    <span className="text-amber-400 font-extrabold block uppercase tracking-wide mb-1">PRO CASINO TIP:</span>
+                    At a live $1/$2 table, players tend to over-call. Avoid limping along (entering the pot for just the $2 BB). If you are the first player to enter a pot, always **open-raise** (usually to $6, $8, or $10 depending on table dynamics) to assert initiative!
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-slate-800">
+                  <button 
+                    onClick={() => setCheatSheetOpen(false)}
+                    className="bg-amber-600 hover:bg-amber-500 text-slate-950 font-extrabold px-5 py-2 rounded shadow transition-all"
+                  >
+                    Got It, Let's Practice
                   </button>
                 </div>
               </div>
